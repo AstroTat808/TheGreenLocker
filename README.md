@@ -9,14 +9,15 @@ Premium forest-green, charcoal, and gold **pre-launch brand website** for The Gr
 - Responsive, dependency-free static homepage (`index.html`, `styles.css`, `app.js`)
 - Accessible mobile menu and cosmetic 21+ **preview acknowledgement** (not a legally sufficient age-verification system)
 - Four **concept-only** collection cards, brand story, and coming-soon messaging
-- Editable *simplified* vector logo (`assets/logo.svg`) used as a temporary site asset
+- Approved-logo PNG export (`assets/approved-logo.png`) displayed in the site
+- Optional simplified editable illustration (`assets/logo.svg`) for future vector design work
 - No product listing, payment processor, order intake, inventory, backend, account access, shipping, or commercial claims
 
 ## Important: logo source-of-truth
 
-The **approved brand logo** is the circular ornate gold-and-green locker emblem selected by the owner. The current `assets/logo.svg` is a simplified **vector recreation**, *not* the exact approved artwork.
+The **approved brand logo** is the circular ornate gold-and-green locker emblem selected by the owner. `assets/approved-logo.png` is the faithful raster export used on this site; it was extracted from the previously produced embedded-artwork SVG. The separate `assets/logo.svg` is an **editable simplified recreation**, not a pixel-perfect vector conversion.
 
-Before launch, replace the SVG on the website with a web-optimized transparent raster export of the approved original (from the separately delivered brand kit). Keep the original unmodified in source assets, and give the icon a legible accessible name.
+Before launch, review the logo on both light and dark backgrounds and optimize image delivery. For high-resolution print masters, use the previously delivered standalone brand kit. Do not replace the primary emblem with the simplified SVG without owner approval.
 
 ## Local preview
 
@@ -45,7 +46,7 @@ Then visit `http://localhost:8080`. For visual-design reviews only, add `?previe
 - Complete trademark clearance for The Green Locker / GreenLocker
 - Identify licensed products, jurisdictions, fulfillment and shipping restrictions
 - Obtain required permits and verify compliant advertising, age/identity checks, and checkout
-- Finalize approved brand art and all legal copy
+- Optimize approved brand artwork for web delivery and finalize legal copy
 - Review desktop/mobile and accessibility before connecting Netlify
 
 ## Deployment
