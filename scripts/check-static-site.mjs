@@ -17,7 +17,7 @@ assert.match(html, /<dialog id="ageDialog"/);
 assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
 assert.match(html, /NOT AN ACTIVE RETAIL STORE/);
 assert.match(html, /This is not a live sales or shipping website/);
-assert.match(css, /@media\(max-width:720px\)/);
+assert.match(css, /@media\(max-width:900px\)/);
 assert.match(css, /prefers-reduced-motion/);
 assert.match(js, /NOT a licensed-store age-verification mechanism/);
 assert.match(svg, /<svg[\s>]/);
