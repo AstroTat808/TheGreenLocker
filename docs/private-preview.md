@@ -47,4 +47,4 @@ Static browser QA targets the brand layout; private server tests confirm the aut
 
 ## Netlify
 
-**Do not connect Netlify yet.** A normal static Netlify publish of this repository would bypass the private server entirely. Before production, integrate a protected serverless/edge authentication gateway and a production-grade persistent database, and verify that every HTML/data endpoint is blocked when logged out. Retain the explicit prohibition on live cannabis sales until applicable licensing and compliance requirements are met.
+**Do not connect Netlify yet.** The committed `netlify.toml` intentionally fails Netlify builds until authenticated hosting is implemented. A normal static Netlify publish of this repository would bypass the private server entirely. Before production, integrate a protected serverless/edge authentication gateway and a production-grade persistent database, and verify that every HTML/data endpoint is blocked when logged out. Retain the explicit prohibition on live cannabis sales until applicable licensing and compliance requirements are met.
