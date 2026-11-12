@@ -69,10 +69,11 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.getByText(sku,{exact:true}).first()).toBeVisible();
  await page.getByLabel("Draft item").selectOption({label:sku+" — Sample accessory"});
  await page.getByLabel("Quantity change").fill("5");
- await page.getByLabel("Reason").fill("Development-only counted samples");
+ const movementReason="Development counted samples for "+sku;
+ await page.getByLabel("Reason").fill(movementReason);
  await page.getByRole("button",{name:"Record adjustment"}).click();
  await expect(page.getByText("Inventory movement recorded")).toBeVisible();
- await expect(page.getByRole("cell",{name:"Development-only counted samples"})).toBeVisible();
+ await expect(page.getByRole("cell",{name:movementReason,exact:true})).toBeVisible();
  await assertNoOverflow(page);
  await page.goto("/catalog");
  await expect(page.getByRole("heading",{name:"Sample accessory"})).toBeVisible();
