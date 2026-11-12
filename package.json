@@ -1,0 +1,13 @@
+{
+  "name": "the-green-locker-preview",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Development-only brand concept; no orders or checkout.",
+  "scripts": {
+    "check": "node --check app.js && node scripts/check-static-site.mjs",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
