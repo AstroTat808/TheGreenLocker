@@ -1,0 +1,4 @@
+# Fail closed: no static publication of the private site before an authenticated hosting integration.
+[build]
+  command = "node scripts/deny-static-deploy.mjs"
+  publish = "deployment-disabled"
