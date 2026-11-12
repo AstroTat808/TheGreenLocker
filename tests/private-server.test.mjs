@@ -21,6 +21,8 @@ test("all pages require account login; invited member and admin roles control th
  r=await req("/styles.css");assert.equal(r.status,303);
  r=await req("/login");assert.equal(r.status,200);
  assert.match(await r.text(),/Welcome back/);
+ r=await req("/register",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Origin":"null"},body:new URLSearchParams({email:"blocked@example.com",password:"correct-long-password-123",invite:"ci-test-invitation-code-unpublished"})});
+ assert.equal(r.status,403,"Malformed Origin must be rejected without a 500");
  r=await post("/register",{email:"member@example.com",password:"correct-long-password-123",invite:"incorrect"});
  assert.equal(r.status,400);
  r=await post("/register",{email:"member@example.com",password:"correct-long-password-123",invite:"ci-test-invitation-code-unpublished"});
