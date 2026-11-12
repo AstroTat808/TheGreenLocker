@@ -16,12 +16,9 @@ async function register(page,email) {
  await page.getByLabel("Email address").fill(email);
  await page.getByLabel("Password").fill(password);
  await page.getByLabel("Invitation code").fill(invite);
- const formState = await page.locator('form[action="/register"]').evaluate(form=>({valid:form.checkValidity(),fields:[...form.elements].filter(x=>x.name).map(x=>({name:x.name,valid:x.validity.valid,message:x.validationMessage,length:x.value.length}))}));
- console.log("REGISTER_FORM_VALIDATION",JSON.stringify(formState));
- const responsePromise=page.waitForResponse(r=>r.request().method()==="POST" && r.url().endsWith("/register"),{timeout:3500}).catch(()=>null);
+ const responsePromise=page.waitForResponse(r=>r.request().method()==="POST" && r.url().endsWith("/register"));
  await page.getByRole("button",{name:"Create private account"}).click();
- const response=await responsePromise;
- console.log("REGISTER_RESPONSE_STATUS",response?.status()??"no POST",response ? (await response.text()).slice(0,280) : "no navigation");
+ expect((await responsePromise).status()).toBe(303);
  await expect(page).toHaveURL(/\/login\?registered=1/);
 }
 async function login(page,email) {
