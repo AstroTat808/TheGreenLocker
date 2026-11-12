@@ -72,7 +72,7 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.getByLabel("Reason").fill("Development-only counted samples");
  await page.getByRole("button",{name:"Record adjustment"}).click();
  await expect(page.getByText("Inventory movement recorded")).toBeVisible();
- await expect(page.getByText("Development-only counted samples")).toBeVisible();
+ await expect(page.getByRole("cell",{name:"Development-only counted samples"})).toBeVisible();
  await assertNoOverflow(page);
  await page.goto("/catalog");
  await expect(page.getByRole("heading",{name:"Sample accessory"})).toBeVisible();
