@@ -46,7 +46,7 @@ function listProducts(db) {
  return db.prepare("SELECT p.*, COALESCE(SUM(m.delta),0) AS stock FROM products p LEFT JOIN movements m ON m.product_id=p.id GROUP BY p.id ORDER BY p.id DESC").all();
 }
 function respond(res, code, body, type = "text/html; charset=utf-8", additional = {}) {
- res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", ...additional });
+ res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", ...additional });
  res.end(body);
 }
 const redirect = (res, to, extra = {}) => respond(res, 303, "", "text/plain; charset=utf-8", {Location:to,...extra});
@@ -91,7 +91,9 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
    if (["POST","PUT","PATCH","DELETE"].includes(method) && req.headers.origin) {
      const host = req.headers.host;
-     if (new URL(req.headers.origin).host !== host) return respond(res,403,"Origin mismatch","text/plain; charset=utf-8");
+     let originHost;
+     try { originHost = new URL(req.headers.origin).host; } catch { return respond(res,403,"Invalid request origin","text/plain; charset=utf-8"); }
+     if (originHost !== host) return respond(res,403,"Origin mismatch","text/plain; charset=utf-8");
    }
    if (method === "POST" && (pathname === "/login" || pathname === "/register")) {
      if (blocked(req.socket.remoteAddress || "unknown",pathname,pathname === "/register" ? 5 : 10)) return respond(res,429,authPage(pathname==="/register","Too many attempts; retry later."));
