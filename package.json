@@ -5,9 +5,15 @@
   "description": "Development-only brand concept; no orders or checkout.",
   "scripts": {
     "check": "node --check app.js && node scripts/check-static-site.mjs",
+    "start:private": "node private/server.mjs",
+    "admin:promote": "node private/admin-cli.mjs",
+    "test:private": "node --test tests/private-server.test.mjs",
     "test:browser": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
