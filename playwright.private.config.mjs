@@ -6,7 +6,7 @@ export default defineConfig({
  testMatch:"private-browser.spec.mjs",
  timeout:40000,
  reporter:[["list"],["html",{open:"never",outputFolder:"playwright-private-report"}]],
- retries:process.env.CI ? 1 : 0,
+ retries:0, // Account creation is intentionally rate-limited; rerunning the same test can trigger 429.
  workers:1,
  use:{baseURL:"http://127.0.0.1:4174",screenshot:"only-on-failure",trace:"retain-on-failure"},
  projects:[
