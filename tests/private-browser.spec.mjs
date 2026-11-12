@@ -61,13 +61,14 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
  const sku="SAMPLE-"+randomBytes(3).toString("hex").toUpperCase();
+ const productName="Sample accessory "+sku;
  await page.getByLabel("SKU").fill(sku);
- await page.getByLabel("Name").fill("Sample accessory");
+ await page.getByLabel("Name").fill(productName);
  await page.getByLabel("Category").selectOption("Lifestyle");
  await page.getByRole("button",{name:"Save draft"}).click();
  await expect(page.getByText("Draft saved")).toBeVisible();
  await expect(page.getByText(sku,{exact:true}).first()).toBeVisible();
- await page.getByLabel("Draft item").selectOption({label:sku+" — Sample accessory"});
+ await page.getByLabel("Draft item").selectOption({label:sku+" — "+productName});
  await page.getByLabel("Quantity change").fill("5");
  const movementReason="Development counted samples for "+sku;
  await page.getByLabel("Reason").fill(movementReason);
@@ -76,7 +77,8 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.getByRole("cell",{name:movementReason,exact:true})).toBeVisible();
  await assertNoOverflow(page);
  await page.goto("/catalog");
- await expect(page.getByRole("heading",{name:"Sample accessory"})).toBeVisible();
- await expect(page.getByText("No prices or sales")).toBeVisible();
+ const card=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:productName,exact:true})});
+ await expect(card).toBeVisible();
+ await expect(card.getByText("No prices or sales")).toBeVisible();
  await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
 });
