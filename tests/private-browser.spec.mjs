@@ -7,8 +7,12 @@ const invite="ci-playwright-invitation-12345";
 const password="Secure-preview-password-567";
 const emailFor=()=>("preview-"+randomBytes(7).toString("hex")+"@example.com");
 const assertNoOverflow=async page=>{
- const widths=await page.evaluate(()=>({viewport:document.documentElement.clientWidth,content:document.documentElement.scrollWidth}));
- expect(widths.content,"Unexpected horizontal scrolling on protected page").toBeLessThanOrEqual(widths.viewport+1);
+ const widths=await page.evaluate(()=>{
+   const viewport=document.documentElement.clientWidth;
+   const offenders=[...document.querySelectorAll("body *")].filter(el=>el.getBoundingClientRect().right>viewport+1).slice(0,10).map(el=>({tag:el.tagName,className:String(el.className).slice(0,70),right:Math.round(el.getBoundingClientRect().right)}));
+   return {viewport,content:document.documentElement.scrollWidth,offenders};
+ });
+ expect(widths.content,"Unexpected horizontal scrolling; overflow elements: "+JSON.stringify(widths.offenders)).toBeLessThanOrEqual(widths.viewport+1);
 };
 async function register(page,email) {
  await page.goto("/register");
