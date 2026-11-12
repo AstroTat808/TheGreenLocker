@@ -2,6 +2,12 @@
 
 Premium forest-green, charcoal, and gold **pre-launch brand website** for The Green Locker.
 
+## Private account development (PR #2)
+
+A separate Node 24 server now provides invited-user registration, sign-in, an internal concept catalog and administrator-only inventory tracking. **This does not enable online sales or public deployment.** See [private preview setup and security boundary](docs/private-preview.md).
+
+Use `npm run start:private` with `TGL_INVITE_CODE` configured for real server-enforced preview access. Running the original static `python3 -m http.server` design preview **bypasses authentication**; never treat that static mode as a private website. Netlify builds are intentionally blocked until authenticated hosting is implemented.
+
 > **Status:** Visual marketing prototype only. Not a licensed dispensary, active storefront, or national shipping service. **Do not connect to production or publish as an active retail website** before legal and brand clearance.
 
 ## What is here
@@ -11,7 +17,7 @@ Premium forest-green, charcoal, and gold **pre-launch brand website** for The Gr
 - Four **concept-only** collection cards, brand story, and coming-soon messaging
 - Approved-logo PNG export (`assets/approved-logo.png`) displayed in the site
 - Optional simplified editable illustration (`assets/logo.svg`) for future vector design work
-- No product listing, payment processor, order intake, inventory, backend, account access, shipping, or commercial claims
+- The root HTML remains a visual homepage; the optional private Node server has **draft-only** product and inventory tooling. No payments, orders, checkout, shipping, or commercial claims exist
 
 ## Important: logo source-of-truth
 
@@ -51,8 +57,8 @@ Then visit `http://localhost:8080`. For visual-design reviews only, add `?previe
 
 ## Deployment
 
-**No Netlify site, deployment, redirects, domains, or secrets are configured by this repository.** When you choose to deploy later, connect GitHub to Netlify, set the publish directory to the repository root, and omit the build command. Ensure the launch gates above are met.
+**No Netlify site, live deployment, domain mapping, or secrets are configured.** `netlify.toml` deliberately blocks accidental static builds of the private application. When you choose to deploy later, connect GitHub to Netlify, set the publish directory to the repository root, and omit the build command. Ensure the launch gates above are met.
 
 ## Developer notes
 
-No framework, dependency install, or environment variables are required. The page is deliberately isolated from production commerce and is suitable for review through GitHub pull requests.
+The standalone homepage has no runtime framework; authenticated preview requires Node 24+, a private invitation secret, and a persistent local SQLite database. Browser test tooling is an optional development dependency. The site is deliberately isolated from production commerce and is suitable for GitHub pull request review.
