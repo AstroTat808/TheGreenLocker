@@ -34,6 +34,7 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
   } else {
     await expect(page.getByRole("navigation")).toBeVisible();
   }
+  for (const img of await page.locator('img').all()) await img.scrollIntoViewIfNeeded();
   const metrics = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     document: document.documentElement.scrollWidth,
