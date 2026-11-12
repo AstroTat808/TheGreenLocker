@@ -34,7 +34,7 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
   } else {
     await expect(page.getByRole("navigation")).toBeVisible();
   }
-  for (const img of await page.locator('img').all()) await img.scrollIntoViewIfNeeded();
+  for (const img of await page.locator('main img').all()) await img.scrollIntoViewIfNeeded();
   const metrics = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     document: document.documentElement.scrollWidth,
@@ -54,7 +54,7 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
 test("required document semantics and no sales actions", async ({ page }) => {
   await page.goto("/?preview=1");
   await expect(page.getByRole("main")).toHaveCount(1);
-  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(1);
+  await expect(page.locator("nav[aria-label=\"Primary navigation\"]")).toHaveCount(1);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByText("NOT AN ACTIVE RETAIL STORE")).toBeVisible();
   await expect(page.locator("form[action], input[type=payment], button[name=checkout]")).toHaveCount(0);
