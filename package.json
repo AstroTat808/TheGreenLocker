@@ -8,7 +8,8 @@
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
     "test:private": "node --test tests/private-server.test.mjs",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "test:private:browser": "playwright test --config=playwright.private.config.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
