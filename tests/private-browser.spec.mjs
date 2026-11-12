@@ -24,6 +24,8 @@ async function login(page,email) {
  await page.getByLabel("Password").fill(password);
  await page.getByRole("button",{name:"Log in",exact:true}).click();
  await expect(page).toHaveURL(/\/$/);
+ const ageYes=page.getByRole("button",{name:"YES, I AM 21+"});
+ if (await ageYes.isVisible()) await ageYes.click();
 }
 test("anonymous visitors are redirected to login instead of seeing the homepage",async({page})=>{
  await page.goto("/");
