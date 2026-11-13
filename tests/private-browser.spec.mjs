@@ -304,6 +304,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.locator(".collection-concept-botanical")).toHaveCount(4);
  await expect(page.locator(".collection-flavor")).toHaveCount(12);
  await expect(page.locator(".collection-concept-treat")).toHaveCount(2);
+ await expect(page.locator(".catalog-card")).toHaveCount(0); // Legacy fixtures stay off the curated shop page.
  await expect(page.getByRole("link",{name:/Vape flavors/})).toHaveAttribute("href","#collection-vapes");
  await expect(page.locator(".collection-policy")).toContainText("No purchases, payments, checkout");
  await expect(page.getByRole("button",{name:/add to cart|buy now|purchase|checkout/i})).toHaveCount(0);
