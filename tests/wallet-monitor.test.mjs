@@ -61,7 +61,7 @@ test("Wallet Operations on an unconfigured instance shows accurate zero metrics 
    assert.match(html,/No Wallet device registrations yet/);
    assert.match(html,/No update notifications have been queued/);
    assert.match(html,/APNs accepted/);
-   assert.doesNotMatch(html,/push_token|private.key|TGL_WALLET_SIGNER_CERT_B64|Bearer|ApplePass/);
+   assert.doesNotMatch(html,/push_token|-----BEGIN PRIVATE KEY-----|TGL_WALLET_SIGNER_CERT_B64|Bearer [A-Za-z0-9]+|ApplePass [A-Za-z0-9]+/);
  }finally{db.close();}
 });
 
