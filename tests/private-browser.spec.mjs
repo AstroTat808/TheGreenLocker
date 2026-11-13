@@ -88,6 +88,7 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.getByRole("button",{name:"Verify identity"}).click();
  await expect(page.getByText("MFA enabled")).toBeVisible();
  await page.goto("/admin");
+ await expect(page.locator(".private-logo img")).toHaveAttribute("src","/logo");
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
  const sku="SAMPLE-"+randomBytes(3).toString("hex").toUpperCase();
@@ -139,6 +140,14 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(botanicalCard.getByText(/THE ARCHIVE|1\/4 lb|16 oz/i)).toHaveCount(0);
  await botanicalCard.locator(".locker-tier").nth(2).click();
  await expect(botanicalCard.locator('input[value="m"]')).toBeChecked();
+ await expect(botanicalCard.locator(".locker-tier").nth(2)).toHaveClass(/is-unlocking/);
+ await expect(botanicalCard.locator(".locker-tier-status")).toContainText("THE CIPHER · 1/2 oz · Preview unlocked · No sales");
+ await expect(botanicalCard.locator(".locker-tier")).toHaveCount(4);
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await botanicalCard.locator(".locker-tier").nth(3).click();
+ await expect(botanicalCard.locator('input[value="l"]')).toBeChecked();
+ await expect(botanicalCard.locator(".locker-tier-status")).toContainText("THE VAULT · 1 oz · Preview unlocked · No sales");
+ await expect(botanicalCard.locator(".locker-tier.is-unlocking")).toHaveCount(0);
  await expect(page.getByRole("button",{name:/buy|checkout|order|reserve/i})).toHaveCount(0);
  await assertNoOverflow(page);
  await page.goto("/admin");
