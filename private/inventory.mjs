@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
+import { validLockerCodename } from "./locker-files.mjs";
 
 const initialCategories=["Botanicals","Formulations","Accessories","Lifestyle"];
 const text=v=>String(v??"").trim();
@@ -80,7 +81,7 @@ export function createInventory({db,dbPath,respond,redirect,formBody,layout}) {
  const suppliers=()=>db.prepare("SELECT id,name,contact_email,contact_phone,notes FROM suppliers ORDER BY name").all();
  const categoryExists=name=>Boolean(db.prepare("SELECT id FROM categories WHERE name=?").get(name));
  const categoryOptions=()=>categories().map(c=>'<option>'+html(c.name)+'</option>').join("");
- const products=()=>db.prepare("SELECT p.id,p.sku,p.name,p.category,p.supplier_id,s.name supplier_name,COALESCE((SELECT SUM(delta) FROM movements m WHERE m.product_id=p.id),0) stock FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.sku").all();
+ const products=()=>db.prepare("SELECT p.id,p.sku,p.name,p.codename,p.category,p.supplier_id,s.name supplier_name,COALESCE((SELECT SUM(delta) FROM movements m WHERE m.product_id=p.id),0) stock FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.sku").all();
  const lots=()=>db.prepare("SELECT l.id,l.product_id,l.lot_code,l.supplier_id,l.received_on,l.expires_on,p.sku,s.name supplier_name,COALESCE((SELECT SUM(m.delta) FROM movements m WHERE m.lot_id=l.id),0) stock FROM inventory_lots l JOIN products p ON p.id=l.product_id LEFT JOIN suppliers s ON s.id=l.supplier_id ORDER BY l.id DESC").all();
  const images=()=>db.prepare("SELECT im.id,im.file_key,p.sku,p.name product_name FROM product_images im JOIN products p ON p.id=im.product_id ORDER BY im.id DESC LIMIT 100").all();
  function adminPanel(csrf){
@@ -119,14 +120,18 @@ export function createInventory({db,dbPath,respond,redirect,formBody,layout}) {
  function importProducts(rows,user) {
   const required=["sku","name","category","supplier"];
   if(rows.some(r=>required.some(k=>!(k in r))))throw new Error("Expected CSV columns: "+required.join(", "));
+  const hasCodename=rows.length>0 && Object.hasOwn(rows[0],"codename");
   const seen=new Set(),prepared=rows.map(r=>{
-    const sku=text(r.sku).toUpperCase(),name=text(r.name),category=text(r.category),supplier=text(r.supplier);
-    if(!/^[A-Z0-9-]{3,32}$/.test(sku)||!validName(name)||!categoryExists(category)||supplier.length>120)throw new Error("Invalid product SKU, name, category, or supplier.");
+    const sku=text(r.sku).toUpperCase(),name=text(r.name),category=text(r.category),supplier=text(r.supplier),codename=hasCodename?text(r.codename):null;
+    if(!/^[A-Z0-9-]{3,32}$/.test(sku)||!validName(name)||!categoryExists(category)||supplier.length>120||(codename&&!validLockerCodename(codename)))throw new Error("Invalid product SKU, name, category, supplier or codename.");
     if(seen.has(sku))throw new Error("Duplicate SKU in CSV: "+sku);
     seen.add(sku);
-    return {sku,name,category,supplier_id:supplierId(supplier)};
+    return {sku,name,category,supplier_id:supplierId(supplier),codename:codename||null};
   });
-  inTx(()=>{for(const r of prepared)db.prepare("INSERT INTO products(sku,name,category,supplier_id,created_by) VALUES(?,?,?,?,?) ON CONFLICT(sku) DO UPDATE SET name=excluded.name,category=excluded.category,supplier_id=excluded.supplier_id").run(r.sku,r.name,r.category,r.supplier_id,user.id);});
+  inTx(()=>{for(const r of prepared){
+    if(hasCodename)db.prepare("INSERT INTO products(sku,name,category,supplier_id,codename,created_by) VALUES(?,?,?,?,?,?) ON CONFLICT(sku) DO UPDATE SET name=excluded.name,category=excluded.category,supplier_id=excluded.supplier_id,codename=excluded.codename").run(r.sku,r.name,r.category,r.supplier_id,r.codename,user.id);
+    else db.prepare("INSERT INTO products(sku,name,category,supplier_id,created_by) VALUES(?,?,?,?,?) ON CONFLICT(sku) DO UPDATE SET name=excluded.name,category=excluded.category,supplier_id=excluded.supplier_id").run(r.sku,r.name,r.category,r.supplier_id,user.id);
+  }});
   return prepared.length;
  }
  function importLots(rows,user){
@@ -161,8 +166,8 @@ export function createInventory({db,dbPath,respond,redirect,formBody,layout}) {
  async function adminRoutes({req,res,user,pathname,method,url}){
   if(user?.role!=="admin"||!pathname.startsWith("/admin/"))return false;
   if(method==="GET"&&pathname==="/admin/export/products.csv"){
-   const rows=products().map(p=>[p.sku,p.name,p.category,p.supplier_name??"",p.stock]);
-   return respond(res,200,asCsv(["sku","name","category","supplier","stock"],rows),"text/csv; charset=utf-8",{"Content-Disposition":'attachment; filename="greenlocker-draft-products.csv"'}),true;
+   const rows=products().map(p=>[p.sku,p.name,p.codename||"",p.category,p.supplier_name??"",p.stock]);
+   return respond(res,200,asCsv(["sku","name","codename","category","supplier","stock"],rows),"text/csv; charset=utf-8",{"Content-Disposition":'attachment; filename="greenlocker-draft-products.csv"'}),true;
   }
   if(method==="GET"&&pathname==="/admin/export/lots.csv"){
    const rows=lots().map(l=>[l.sku,l.lot_code,l.supplier_name??"",l.received_on??"",l.expires_on??"",l.stock]);
