@@ -7,6 +7,7 @@ import { once } from "node:events";
 import { randomBytes } from "node:crypto";
 import { createApp } from "../private/server.mjs";
 import { totpAt } from "../private/security.mjs";
+import { ensureMemberCode, renderMemberCardSvg } from "../private/member-card.mjs";
 
 test("server-enforced preview: invited verification, member access, admin MFA, inventory and logout",async t=>{
  const originalKey=process.env.TGL_MFA_ENCRYPTION_KEY;
@@ -78,14 +79,49 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  }
  response=await req("/member");
  assert.equal(response.status,303,"Anonymous member dashboard requires login.");
+ response=await req("/member/card.svg");
+ assert.equal(response.status,303,"Member card is not public.");
+ response=await req("/member-compartments.js");
+ assert.equal(response.status,303,"Vault controller is private.");
  assert.equal(response.headers.get("location"),"/login");
  response=await req("/member",{headers:{Cookie:cookie}});
  assert.equal(response.status,200);
  let memberMarkup=await response.text();
  assert.match(memberMarkup,/Aloha, <em>Member\.<\/em>/);
  assert.match(memberMarkup,/Unlock the vault/);
- assert.match(memberMarkup,/data-vault-sound/);
+ assert.match(memberMarkup,/data-vault-profile/);
+ assert.match(memberMarkup,/value="silent"/);
+ assert.match(memberMarkup,/value="classic"/);
+ assert.match(memberMarkup,/value="cinematic"/);
  assert.match(memberMarkup,/data-vault-haptics/);
+ assert.match(memberMarkup,/data-vault-compartment/);
+ assert.match(memberMarkup,/data-member-code/);
+ assert.match(memberMarkup,/href="\/member\/card.svg"/);
+ assert.match(memberMarkup,/member-compartments.js/);
+ const membershipCode=db.prepare("SELECT member_code FROM users WHERE email=?").get("member@example.com").member_code;
+ assert.match(membershipCode,/^GL-(?:[A-F0-9]{4}-){3}[A-F0-9]{4}$/);
+ assert.match(memberMarkup,new RegExp(membershipCode));
+ response=await req("/member/card.svg",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(response.headers.get("content-type"),/^image\/svg\+xml/);
+ assert.match(response.headers.get("content-disposition"),/attachment; filename="the-green-locker-member-card.svg"/);
+ assert.equal(response.headers.get("cache-control"),"no-store, private");
+ const cardSvg=await response.text();
+ assert.match(cardSvg,/data:image\/webp;base64,/);
+ assert.match(cardSvg,new RegExp(membershipCode));
+ assert.doesNotMatch(cardSvg,/member@example.com|tgl_session|password_hash/i,
+   "Download contains no sign-in credentials or member email.");
+ const duplicate = ensureMemberCode(db,db.prepare("SELECT id FROM users WHERE email=?").get("member@example.com").id);
+ assert.equal(duplicate,membershipCode,"Member card reference is stable.");
+ const second=db.prepare("INSERT INTO users(email,salt,password_hash) VALUES(?,?,?)").run("other@example.com","test-salt","test-hash");
+ assert.notEqual(ensureMemberCode(db,Number(second.lastInsertRowid)),membershipCode,
+   "Different members have different references.");
+ assert.equal(db.prepare("SELECT COUNT(*) AS count FROM users WHERE member_code=?").get(membershipCode).count,1,
+   "Reference is unique.");
+ const escapedCard=renderMemberCardSvg({displayName:'<script>alert(1)</script>',memberCode:membershipCode,
+   logoBase64:Buffer.from("mock").toString("base64")});
+ assert.doesNotMatch(escapedCard,/<script>/);
+ assert.match(escapedCard,/&lt;script&gt;/);
  assert.doesNotMatch(memberMarkup,/add to cart|checkout|purchase now/i);
  const profileCsrf=memberMarkup.match(/name="csrf" value="([^"]+)"/)?.[1];
  assert.ok(profileCsrf);
@@ -105,8 +141,14 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  memberMarkup=await response.text();
  assert.match(memberMarkup,/Aloha, <em>Christopher J\.<\/em>/);
  assert.match(memberMarkup,/Your display name was updated/);
+ assert.match(memberMarkup,new RegExp(membershipCode),"Changing display name retains the same membership reference.");
+ response=await req("/member/card.svg",{headers:{Cookie:cookie}});
+ assert.match(await response.text(),/Christopher J\./);
  response=await req("/vault-entry.js");
  assert.equal(response.status,303,"The private sound engine cannot be fetched anonymously.");
+ response=await req("/member-compartments.js",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(await response.text(),/prefers-reduced-motion|reduced.matches/);
  response=await req("/",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(await response.text(),/THE GOOD STUFF/);
  response=await req("/assets/shield-logo.webp",{headers:{Cookie:cookie}});assert.equal(response.status,200);
