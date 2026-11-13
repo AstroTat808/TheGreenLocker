@@ -237,9 +237,10 @@ export function installWalletMonitorSchema(db){
 }
 
 export function emailAlertsConfigured(env=process.env){
+  // Alert mail is independent of the workshop's local account-email outbox.
+  // Explicit opt-in and verified Resend sender are both required.
   return env.TGL_WALLET_ALERTS_ENABLED==="1" &&
     plausibleEmail(env.TGL_WALLET_ALERT_EMAIL) &&
-    env.TGL_MAIL_MODE==="resend" &&
     Boolean(env.TGL_RESEND_API_KEY && plausibleEmail(env.TGL_EMAIL_FROM));
 }
 
