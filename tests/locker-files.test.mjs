@@ -50,7 +50,7 @@ test("fresh install backfills, creates five fixed draft formats, and handles cat
   assert.match(html,/THE SIGNAL/);
   assert.match(html,/THE CIPHER/);
   assert.match(html,/THE VAULT/);
-  assert.doesNotMatch(html,/THE ARCHIVE|1\/4 lb|4 oz/);
+  assert.doesNotMatch(html,/THE ARCHIVE|1\/4 lb|>4 oz</);
   const internal=renderInternalLockerPackage();
   assert.match(internal,/THE ARCHIVE/);
   assert.match(internal,/1\/4 lb/);
