@@ -113,4 +113,27 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(card).toBeVisible();
  await expect(card.getByText(/No prices, reservations or sales/i)).toBeVisible();
  await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
+ await page.goto("/admin");
+ const botanicalSku="BOT-"+randomBytes(4).toString("hex").toUpperCase();
+ const botanicalCode="Vault Zero "+botanicalSku;
+ const botanicalForm=page.locator('form[action="/admin/products"]');
+ await botanicalForm.locator('input[name="sku"]').fill(botanicalSku);
+ await botanicalForm.locator('input[name="name"]').fill("Botanical development concept "+botanicalSku);
+ await botanicalForm.locator('input[name="codename"]').fill(botanicalCode);
+ await botanicalForm.locator('select[name="category"]').selectOption("Botanicals");
+ await botanicalForm.getByRole("button",{name:"Save draft"}).click();
+ await expect(page.getByText("Draft saved")).toBeVisible();
+ await page.goto("/catalog");
+ const botanicalCard=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:botanicalCode,exact:true})});
+ await expect(botanicalCard).toBeVisible();
+ await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(3);
+ await expect(botanicalCard.locator('.locker-tier-face').nth(0)).toContainText("1 oz");
+ await expect(botanicalCard.locator('.locker-tier-face').nth(1)).toContainText("4 oz");
+ await expect(botanicalCard.locator('.locker-tier-face').nth(2)).toContainText("16 oz");
+ await expect(botanicalCard.locator('.locker-tier-face').nth(2)).toContainText("Not for retail");
+ await botanicalCard.locator(".locker-tier").nth(1).click();
+ await expect(botanicalCard.locator('input[value="medium"]')).toBeChecked();
+ await expect(page.getByRole("button",{name:/buy|checkout|order|reserve/i})).toHaveCount(0);
+ await assertNoOverflow(page);
+
 });
