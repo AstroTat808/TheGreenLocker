@@ -1,0 +1,12 @@
+{$STAGING_DOMAIN} {
+    encode gzip zstd
+    basic_auth {
+        stage {$STAGING_BASIC_AUTH_HASH}
+    }
+    reverse_proxy private-app:4174
+    header {
+        Strict-Transport-Security "max-age=86400"
+        X-Robots-Tag "noindex, nofollow"
+        -Server
+    }
+}

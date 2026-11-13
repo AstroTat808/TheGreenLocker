@@ -8,3 +8,11 @@ test-results/
 .env
 .env.*
 !.env.example
+
+# Isolated staging secrets, local transactional mail and private image uploads
+staging.env
+*.outbox.ndjson
+private-images/
+
+# Workshop live development preview files and random local credentials
+.workshop-preview/

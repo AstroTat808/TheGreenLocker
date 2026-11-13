@@ -2,9 +2,9 @@
 
 Premium forest-green, charcoal, and gold **pre-launch brand website** for The Green Locker.
 
-## Private account development (PR #2)
+## Private account development (PR #2 and draft PR #3)
 
-A separate Node 24 server now provides invited-user registration, sign-in, an internal concept catalog and administrator-only inventory tracking. **This does not enable online sales or public deployment.** See [private preview setup and security boundary](docs/private-preview.md).
+A separate Node 24 server provides invited-user registration, **verified-email sign-in**, self-service password reset, **administrator authenticator MFA**, an internal concept catalog, private product images, suppliers, lot tracking, and CSV imports/exports. **This does not enable online sales or public deployment.** See [private preview setup and security boundary](docs/private-preview.md), plus [security architecture and staging runbook](docs/security-staging-architecture.md).
 
 Use `npm run start:private` with `TGL_INVITE_CODE` configured for real server-enforced preview access. Running the original static `python3 -m http.server` design preview **bypasses authentication**; never treat that static mode as a private website. Netlify builds are intentionally blocked until authenticated hosting is implemented.
 

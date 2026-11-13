@@ -16,5 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Validate backend and staging script syntax
+        run: npm run check:backend
       - name: Validate server-side access controls and inventory
         run: npm run test:private
+      - name: Validate isolated staging fail-closed configuration
+        run: npm run test:staging
+      - name: Validate Workshop live preview and private demo login
+        run: npm run test:workshop

@@ -1,0 +1,134 @@
+name: Green Locker - approved staging release
+
+# Runs only after a pull request is merged into the development branch.
+# Never triggers deployment merely from a direct branch push.
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - feat/security-inventory-staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: greenlocker-staging
+  cancel-in-progress: false
+
+jobs:
+  verify-exact-merge:
+    name: Test the exact merged commit
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out merged SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate full static and backend code
+        run: npm run check
+      - name: Verify auth, MFA, inventory, staging and Workshop launcher
+        run: npm run test:private && npm run test:staging && npm run test:workshop
+      - name: Install Playwright browsers
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium webkit
+      - name: Verify homepage responsive browser QA
+        run: npm run test:browser
+      - name: Verify member and administrator private browser QA
+        run: npm run test:private:browser
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenlocker-exact-sha-browser-evidence
+          path: |
+            playwright-report/
+            playwright-private-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  deploy-staging:
+    name: Deploy verified SHA to separate staging host
+    needs: verify-exact-merge
+    # Fail closed: not even an approved merge may deploy until explicitly enabled.
+    if: github.event.pull_request.merged == true && github.ref_protected == true && vars.TGL_STAGING_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: greenlocker-staging
+      url: https://staging.thegreenlocker.com
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      TGL_STAGING_SSH_HOST: ${{ secrets.TGL_STAGING_SSH_HOST }}
+      TGL_STAGING_SSH_USER: ${{ secrets.TGL_STAGING_SSH_USER }}
+      TGL_STAGING_SSH_KEY: ${{ secrets.TGL_STAGING_SSH_KEY }}
+      TGL_STAGING_SSH_KNOWN_HOSTS: ${{ secrets.TGL_STAGING_SSH_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - name: Enforce staging-only secrets and destination
+        shell: bash
+        run: |
+          set -euo pipefail
+          for setting in TGL_STAGING_SSH_HOST TGL_STAGING_SSH_USER TGL_STAGING_SSH_KEY TGL_STAGING_SSH_KNOWN_HOSTS; do
+            if [[ -z "${!setting}" ]]; then
+              echo "::error::Missing staging secret $setting"
+              exit 1
+            fi
+          done
+          if [[ "$TGL_STAGING_SSH_HOST" == "thegreenlocker.com" || "$TGL_STAGING_SSH_HOST" == "www.thegreenlocker.com" ]]; then
+            echo "::error::The production domain is not a staging deployment target"
+            exit 1
+          fi
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          [[ "$ACTUAL_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "::error::Exact merged SHA does not match release event"; exit 1; }
+          # Do not deploy a superseded approval if this branch advanced during QA.
+          CURRENT_HEAD="$(git ls-remote --exit-code origin refs/heads/feat/security-inventory-staging | cut -f1)"
+          [[ "$CURRENT_HEAD" == "$EXPECTED_SHA" ]] || { echo "::error::Branch advanced after this approval; stale release blocked"; exit 1; }
+      - name: Transfer exact commit over SSH with pinned host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          install -d -m 700 "$RUNNER_TEMP/tgl-ssh"
+          printf '%s\n' "$TGL_STAGING_SSH_KEY" > "$RUNNER_TEMP/tgl-ssh/key"
+          printf '%s\n' "$TGL_STAGING_SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/tgl-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/tgl-ssh/key" "$RUNNER_TEMP/tgl-ssh/known_hosts"
+          # Recheck just before transmission so an old approval cannot overwrite a newer merge.
+          CURRENT_HEAD="$(git ls-remote --exit-code origin refs/heads/feat/security-inventory-staging | cut -f1)"
+          [[ "$CURRENT_HEAD" == "$EXPECTED_SHA" ]] || { echo "::error::Superseded release blocked at transfer"; exit 1; }
+          git archive --format=tar.gz -o "$RUNNER_TEMP/greenlocker-release.tgz" HEAD
+          SSH_OPTS=(-i "$RUNNER_TEMP/tgl-ssh/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/tgl-ssh/known_hosts" -o BatchMode=yes)
+          REMOTE="${TGL_STAGING_SSH_USER}@${TGL_STAGING_SSH_HOST}"
+          scp "${SSH_OPTS[@]}" "$RUNNER_TEMP/greenlocker-release.tgz" "$REMOTE:/tmp/greenlocker-release-${EXPECTED_SHA}.tgz"
+          ssh "${SSH_OPTS[@]}" "$REMOTE" "bash -se -- '$EXPECTED_SHA'" <<'REMOTE_DEPLOY'
+          set -euo pipefail
+          sha="$1"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          base="/opt/thegreenlocker/staging"
+          test -d "$base" || { echo "Dedicated staging host is not provisioned"; exit 1; }
+          test -f "$base/staging.env" || { echo "Missing private staging environment"; exit 1; }
+          chmod 600 "$base/staging.env"
+          release="$base/releases/$sha"
+          mkdir -p "$release"
+          tar -xzf "/tmp/greenlocker-release-${sha}.tgz" -C "$release"
+          ln -sfn "$base/staging.env" "$release/staging.env"
+          cd "$release"
+          docker compose --env-file "$base/staging.env" -f compose.staging.yml config --quiet
+          docker compose --env-file "$base/staging.env" -f compose.staging.yml up -d --build --wait
+          docker compose --env-file "$base/staging.env" -f compose.staging.yml exec -T private-app \
+            node -e 'fetch("http://127.0.0.1:4174/healthz").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+          printf '%s\n' "$sha" > "$base/active_sha"
+          rm -f "/tmp/greenlocker-release-${sha}.tgz"
+          echo "Verified exact merge commit deployed to isolated staging"
+          REMOTE_DEPLOY

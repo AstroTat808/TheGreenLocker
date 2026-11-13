@@ -1,0 +1,56 @@
+name: thegreenlocker-staging
+services:
+  private-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./staging.env
+    environment:
+      NODE_ENV: production
+      TGL_ENV: staging
+      TGL_HOST: 0.0.0.0
+      PORT: "4174"
+      TGL_DB_PATH: /data/staging.sqlite
+      TGL_IMAGE_DIR: /data/images
+    volumes:
+      - staging-private-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - staging-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4174/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  https-gateway:
+    image: caddy:2-alpine
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?staging hostname required}
+      STAGING_BASIC_AUTH_HASH: ${STAGING_BASIC_AUTH_HASH:?bcrypt gateway hash required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - staging-caddy-data:/data
+      - staging-caddy-config:/config
+    depends_on:
+      private-app:
+        condition: service_healthy
+    networks:
+      - staging-internal
+    restart: unless-stopped
+volumes:
+  staging-private-data:
+  staging-caddy-data:
+  staging-caddy-config:
+networks:
+  staging-internal:
