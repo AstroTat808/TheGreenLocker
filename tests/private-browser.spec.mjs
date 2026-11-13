@@ -390,7 +390,7 @@ test("administrator can manage draft products and stock without sales actions",a
  const imageForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
  await imageForm.locator('input[type="file"]').setInputFiles({
    name:"preview.png",mimeType:"image/png",
-   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==","base64")
+   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64")
  });
  // Admin artwork is stripped of source metadata and re-encoded as WebP.
  await imageForm.getByRole("button",{name:/Optimize & upload image/}).click();
