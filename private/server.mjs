@@ -77,6 +77,7 @@ const bodyValue = (params, name) => String(params.get(name) ?? "").trim();
 const queryString = url => new URL(url, "http://localhost");
 export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = process.env.TGL_DB_PATH || path.join(root,"data","private.sqlite"), mailSender, publicOrigin = process.env.TGL_PUBLIC_ORIGIN || "http://127.0.0.1:4174" } = {}) {
  if (!inviteCode || inviteCode.length < 16) throw new Error("Set a unique TGL_INVITE_CODE with at least 16 characters.");
+ if (process.env.NODE_ENV === "production" && process.env.TGL_ENV !== "staging") throw new Error("Public production runtime is disabled; only explicitly isolated staging is permitted.");
  const db = openDb(dbPath);
  const security = createSecurity({db,dbPath,origin:publicOrigin,mailSender,respond,redirect,formBody,layout,csrfField});
  const inventory = createInventory({db,dbPath,respond,redirect,formBody,layout});
