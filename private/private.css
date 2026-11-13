@@ -712,3 +712,7 @@ body{
   .member-compartment,.member-compartment *,.vault-profile-option{animation:none!important;transition:none!important}
   .compartment-panel{transform:none!important}
 }
+
+/* Permanent device capability note remains visible during sound auditions. */
+.vault-feedback-support{font:12px/1.6 Arial,sans-serif;color:#c4b69c;margin:10px 0 0;min-height:0}
+.vault-feedback-support:empty{display:none}
