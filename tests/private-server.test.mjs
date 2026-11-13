@@ -82,7 +82,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/member",{headers:{Cookie:cookie}});
  assert.equal(response.status,200);
  let memberMarkup=await response.text();
- assert.match(memberMarkup,/Aloha, Member\./);
+ assert.match(memberMarkup,/Aloha, <em>Member\.<\/em>/);
  assert.match(memberMarkup,/Unlock the vault/);
  assert.match(memberMarkup,/data-vault-sound/);
  assert.match(memberMarkup,/data-vault-haptics/);
