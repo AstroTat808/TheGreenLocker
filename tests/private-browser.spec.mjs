@@ -66,7 +66,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.getByRole("heading",{level:1})).toBeVisible();
  await assertNoOverflow(page);
  await page.getByRole("link",{name:"Internal catalog"}).click();
- await expect(page.getByRole("heading",{name:"Catalog concepts"})).toBeVisible();
+ await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
  await expect(page.getByText("Nothing available")).toHaveCount(0);
  await assertNoOverflow(page);
  await page.getByRole("button",{name:"Log out"}).click();
@@ -111,6 +111,6 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.goto("/catalog");
  const card=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:productName,exact:true})});
  await expect(card).toBeVisible();
- await expect(card.getByText("No prices or sales")).toBeVisible();
+ await expect(card.getByText(/No prices, reservations or sales/i)).toBeVisible();
  await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
 });
