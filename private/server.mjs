@@ -39,7 +39,7 @@ const layout = (title, contents, user = null, csrf = "") => '<!doctype html><htm
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
 const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
 const productRows = (products,db) => products.map(p => '<article class="catalog-card">' + (p.image_key ? '<img class="catalog-image" src="/media/' + encodeURIComponent(p.image_key) + '" alt="Draft product image for ' + esc(p.name) + '" loading="lazy">' : "") + '<div class="catalog-tag">FILE ' + esc(p.sku) + ' · ' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.codename || p.name) + '</h2>' + (p.codename ? '<p class="locker-real-name">Internal identification: ' + esc(p.name) + '</p>' : "") + renderLockerSizeChoices(db,p) + '<small>Private draft archive · No prices, reservations or sales</small></article>').join("");
-const catalogPage = (products, user, csrf,db) => layout("The Green Locker Collections",
+const catalogPage = (products, user, csrf,db,{includeArchive=true}={}) => layout("The Green Locker Collections",
   renderVaultPortal() +
   '<section class="private-title collection-hero"><span class="eyebrow">THE GREEN LOCKER / PRIVATE COLLECTION PREVIEW</span>'+
   '<h1>THE COLLECTION <em>VAULT.</em></h1>'+
@@ -47,11 +47,11 @@ const catalogPage = (products, user, csrf,db) => layout("The Green Locker Collec
   '<div class="collection-hero-meta"><span>02–04 BOTANICAL CONCEPTS</span><span>12 VAPE FLAVOR CONCEPTS</span><span>02 CRISPY TREAT CONCEPTS</span></div>'+
   '<button id="locker-entry-replay" class="locker-entry-replay" type="button" hidden>Replay vault opening</button></section>'+
   renderCollectionConcepts() +
-  '<section class="collection-archive" id="internal-draft-records" aria-labelledby="collection-archive-heading">'+
+  (includeArchive ? '<section class="collection-archive" id="internal-draft-records" aria-labelledby="collection-archive-heading">'+
   '<div class="collection-preview-heading"><div><span class="eyebrow">EXISTING INTERNAL DRAFT RECORDS / NOT THE PLANNED ASSORTMENT</span>'+
   '<h2 id="collection-archive-heading">The Locker <em>Files.</em></h2>'+
   '<p>Previously created draft items are retained for inventory and QA continuity. They do not represent the finalized two-to-four variety lineup.</p></div></div>'+
-  '<div class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">No legacy draft entries.</p>') + '</div></section>'+
+  '<div class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">No legacy draft entries.</p>') + '</div></section>' : '')+
   '<script src="/vault-entry.js" defer></script><script src="/locker-motion.js" defer></script>',user,csrf);
 const adminPage = (products, movements, usersCount, user, csrf, notice = "", extras = "", categoryOptions = "") => {
  const total = products.reduce((sum,p)=>sum+p.stock,0);
@@ -296,7 +296,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
-   if (method === "GET" && (pathname === "/catalog" || pathname === "/shop")) return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db));
+   if (method === "GET" && (pathname === "/catalog" || pathname === "/shop")) return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db,{includeArchive:pathname==="/catalog"}));
    if (await inventory.mediaRoute({req,res,pathname})) return;
    if (method === "GET" && pathname === "/inventory-client.js" && user.role === "admin") return respond(res,200,fs.readFileSync(path.join(root,"private/inventory-client.js")),"text/javascript; charset=utf-8");
    if (await inventory.adminRoutes({req,res,url,pathname,method,user})) return;
