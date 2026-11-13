@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
+import { createInventory } from "./inventory.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const MS8H = 8 * 60 * 60 * 1000;
@@ -23,14 +24,14 @@ const header = (title, user, csrf) => '<header class="private-header"><a class="
 const layout = (title, contents, user = null, csrf = "") => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>' + esc(title) + ' | The Green Locker</title><link rel="stylesheet" href="/private.css"></head><body>' + header(title,user,csrf) + '<main class="private-main">' + contents + '</main><footer class="private-footer">The Green Locker · Internal pre-launch software · No purchases, shipping, or fulfillment</footer></body></html>';
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
 const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p></section>');
-const productRows = products => products.map(p => '<article class="catalog-card"><div class="catalog-tag">' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.name) + '</h2><p>Internal SKU ' + esc(p.sku) + '</p><small>Preview entry only · No prices or sales</small></article>').join("");
+const productRows = products => products.map(p => '<article class="catalog-card">' + (p.image_key ? '<img class="catalog-image" src="/media/' + encodeURIComponent(p.image_key) + '" alt="Draft product image for ' + esc(p.name) + '" loading="lazy">' : "") + '<div class="catalog-tag">' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.name) + '</h2><p>Internal SKU ' + esc(p.sku) + '</p><small>Preview entry only · No prices or sales</small></article>').join("");
 const catalogPage = (products, user, csrf) => layout("Concept catalog", '<section class="private-title"><span class="eyebrow">INTERNAL COLLECTIONS</span><h1>Catalog concepts</h1><p>Private catalog records for development and evaluation. Nothing here may be ordered or purchased.</p></section><section class="catalog-grid">' + (products.length ? productRows(products) : '<p class="empty-state">The catalog is empty. An administrator can create the first draft item.</p>') + '</section>',user,csrf);
-const adminPage = (products, movements, usersCount, user, csrf, notice = "") => {
+const adminPage = (products, movements, usersCount, user, csrf, notice = "", extras = "", categoryOptions = "") => {
  const total = products.reduce((sum,p)=>sum+p.stock,0);
  const rows = products.map(p=>'<tr><td>' + esc(p.sku) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.category) + '</td><td>' + p.stock + '</td><td>Draft only</td></tr>').join("");
  const history = movements.map(m=>'<tr><td>' + esc(m.created_at) + '</td><td>' + esc(m.sku) + '</td><td>' + (m.delta > 0 ? "+" : "") + m.delta + '</td><td>' + esc(m.reason) + '</td><td>' + esc(m.actor_email) + '</td></tr>').join("");
  const options = products.map(p=>'<option value="' + p.id + '">' + esc(p.sku) + ' — ' + esc(p.name) + '</option>').join("");
- return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Category<select name="category">' + CATEGORIES.map(c=>'<option>' + c + '</option>').join("") + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section><section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>', user, csrf);
+ return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Category<select name="category">' + categoryOptions + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section><section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>', user, csrf);
 };
 
 export function openDb(dbPath) {
@@ -44,7 +45,7 @@ export function openDb(dbPath) {
  return db;
 }
 function listProducts(db) {
- return db.prepare("SELECT p.*, COALESCE(SUM(m.delta),0) AS stock FROM products p LEFT JOIN movements m ON m.product_id=p.id GROUP BY p.id ORDER BY p.id DESC").all();
+ return db.prepare("SELECT p.*, COALESCE(SUM(m.delta),0) AS stock,(SELECT file_key FROM product_images im WHERE im.product_id=p.id ORDER BY im.id DESC LIMIT 1) image_key FROM products p LEFT JOIN movements m ON m.product_id=p.id GROUP BY p.id ORDER BY p.id DESC").all();
 }
 function respond(res, code, body, type = "text/html; charset=utf-8", additional = {}) {
  res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", ...additional });
@@ -64,11 +65,11 @@ const blocked = (ip, route, max = 10) => {
  LIMITS.set(key,current);
  return current.count > max;
 };
-async function formBody(request) {
+async function formBody(request,maxLength=16384) {
  let body = "";
  for await (const chunk of request) {
    body += chunk.toString("utf8");
-   if (body.length > 16384) throw new Error("Request exceeds allowed size");
+   if (body.length > maxLength) throw new Error("Request exceeds allowed size");
  }
  return new URLSearchParams(body);
 }
@@ -78,6 +79,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
  if (!inviteCode || inviteCode.length < 16) throw new Error("Set a unique TGL_INVITE_CODE with at least 16 characters.");
  const db = openDb(dbPath);
  const security = createSecurity({db,dbPath,origin:publicOrigin,mailSender,respond,redirect,formBody,layout,csrfField});
+ const inventory = createInventory({db,dbPath,respond,redirect,formBody,layout});
  const server = http.createServer(async (req,res) => {
   try {
    const url = queryString(req.url);
@@ -132,6 +134,9 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && ["/styles.css","/app.js","/assets/logo.svg"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : pathname.endsWith(".js") ? "text/javascript; charset=utf-8" : "image/svg+xml");
    if (method === "GET" && pathname === "/assets/approved-logo.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/approved-logo.png")),"image/png");
    if (method === "GET" && pathname === "/catalog") return respond(res,200,catalogPage(listProducts(db),user,user.csrf));
+   if (await inventory.mediaRoute({req,res,pathname})) return;
+   if (method === "GET" && pathname === "/inventory-client.js" && user.role === "admin") return respond(res,200,fs.readFileSync(path.join(root,"private/inventory-client.js")),"text/javascript; charset=utf-8");
+   if (await inventory.adminRoutes({req,res,url,pathname,method,user})) return;
    if (method === "POST" && pathname === "/logout") {
      const p = await formBody(req);
      if (!safeCompare(bodyValue(p,"csrf"),user.csrf)) return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
@@ -144,7 +149,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        const products = listProducts(db);
        const movements = db.prepare("SELECT m.*,p.sku,u.email actor_email FROM movements m JOIN products p ON p.id=m.product_id JOIN users u ON u.id=m.actor_id ORDER BY m.id DESC LIMIT 30").all();
        const usersCount = db.prepare("SELECT COUNT(*) count FROM users").get().count;
-       return respond(res,200,adminPage(products,movements,usersCount,user,user.csrf,url.searchParams.get("notice") || ""));
+       return respond(res,200,adminPage(products,movements,usersCount,user,user.csrf,url.searchParams.get("notice") || "",inventory.adminPanel(user.csrf),inventory.categoryOptions()));
      }
      if (method === "POST" && ["/admin/products","/admin/stock"].includes(pathname)) {
        const p = await formBody(req);
@@ -152,7 +157,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        try {
          if (pathname === "/admin/products") {
            const sku = bodyValue(p,"sku").toUpperCase(), name = bodyValue(p,"name"), category = bodyValue(p,"category");
-           if (!/^[A-Z0-9-]{3,32}$/.test(sku) || name.length < 2 || name.length > 120 || !CATEGORIES.includes(category)) throw new Error("Invalid product fields");
+           if (!/^[A-Z0-9-]{3,32}$/.test(sku) || name.length < 2 || name.length > 120 || !inventory.categoryExists(category)) throw new Error("Invalid product fields");
            db.prepare("INSERT INTO products(sku,name,category,created_by) VALUES(?,?,?,?)").run(sku,name,category,user.id);
            return redirect(res,"/admin?notice=Draft%20saved");
          }
