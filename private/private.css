@@ -1385,3 +1385,9 @@ body{
 @media(prefers-reduced-motion:reduce){
  .assortment-editor-card,.assortment-editor-details summary{transition:none!important}
 }
+
+
+/* Screenshot QA: keep the full 4:3 foil-package composition on wider phones. */
+@media(max-width:760px){
+ .assortment-editor-thumb{height:clamp(222px,70vw,300px)}
+}
