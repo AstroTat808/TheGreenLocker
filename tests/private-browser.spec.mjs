@@ -296,9 +296,42 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page).toHaveURL(/\/catalog$/);
  await expect(page.locator("#locker-entry-portal")).toBeHidden();
  await assertNoOverflow(page);
+ // The /shop route is a secured design gallery, never a commerce endpoint.
+ await page.goto("/shop");
+ await expect(page).toHaveURL(/\/shop$/);
+ await expect(page.getByRole("heading",{name:/THE COLLECTION VAULT/i})).toBeVisible();
+ await expect(page.locator(".collection-preview-section")).toHaveCount(3);
+ await expect(page.locator(".collection-concept-botanical")).toHaveCount(4);
+ await expect(page.locator(".collection-flavor")).toHaveCount(12);
+ await expect(page.locator(".collection-concept-treat")).toHaveCount(2);
+ await expect(page.getByRole("link",{name:/Vape flavors/})).toHaveAttribute("href","#collection-vapes");
+ await expect(page.locator(".collection-policy")).toContainText("No purchases, payments, checkout");
+ await expect(page.getByRole("button",{name:/add to cart|buy now|purchase|checkout/i})).toHaveCount(0);
+ await assertNoOverflow(page);
+ if (test.info().project.name === "private-mobile-webkit") {
+   const directory=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(directory,{recursive:true});
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:770});
+     await assertNoOverflow(page);
+     for(const [name,selector] of [
+       ["botanicals","#collection-botanicals"],
+       ["vape-flavors","#collection-vapes"],
+       ["crispy-treats","#collection-treats"]
+     ]) {
+       const panel=page.locator(selector);
+       await expect(panel).toBeVisible();
+       await panel.screenshot({
+         path:path.join(directory,width+"-collection-"+name+".png"),animations:"disabled"
+       });
+     }
+   }
+ }
  await page.getByRole("button",{name:"Log out"}).click();
  await expect(page).toHaveURL(/\/login$/);
  await page.goto("/catalog");
+ await expect(page).toHaveURL(/\/login$/);
+ await page.goto("/shop");
  await expect(page).toHaveURL(/\/login$/);
 });
 test("administrator can manage draft products and stock without sales actions",async({page})=>{
