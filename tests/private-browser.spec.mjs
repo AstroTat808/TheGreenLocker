@@ -62,6 +62,7 @@ test("anonymous visitors are redirected to login instead of seeing the homepage"
  await expect(page).toHaveURL(/\/login$/);
 });
 test("invited member can register, log in, and view concept-only catalog",async({page})=>{
+ test.slow(); // Full authenticated mobile visual audit captures 21 screenshots.
  const email=emailFor();
  await register(page,email);
  await login(page,email);
