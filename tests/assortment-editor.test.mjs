@@ -81,7 +81,7 @@ test("escaped HTML, length limits and admin-only handling protect concept fields
   assert.doesNotMatch(shop,/<script>alert|<img src=x onerror=/);
   const form=editor.renderEditor({user:admin});
   assert.match(form,/&lt;img src=x onerror=alert\(1\)&gt;/);
-  assert.match(form,/Assortment Studio/);
+  assert.match(form,/<h1>Assortment <em>Studio\.<\/em><\/h1>/);
   assert.throws(()=>updateConcept(db,{id:"treat-01",version:1,title:"x".repeat(91),
    description:"",notes:"",visible:true,editorId:admin.id}),AssortmentInvalid);
   const notAdmin={...admin,role:"member"};
