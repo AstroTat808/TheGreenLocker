@@ -63,7 +63,7 @@ function listProducts(db) {
  return db.prepare("SELECT p.*, COALESCE(SUM(m.delta),0) AS stock,(SELECT file_key FROM product_images im WHERE im.product_id=p.id ORDER BY im.id DESC LIMIT 1) image_key FROM products p LEFT JOIN movements m ON m.product_id=p.id GROUP BY p.id ORDER BY p.id DESC").all();
 }
 function respond(res, code, body, type = "text/html; charset=utf-8", additional = {}) {
- res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", ...additional });
+ res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin", "X-Robots-Tag": "noindex, nofollow", ...(process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW === "1" ? {"Strict-Transport-Security":"max-age=31536000"} : {}), "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", ...additional });
  res.end(body);
 }
 const redirect = (res, to, extra = {}) => respond(res, 303, "", "text/plain; charset=utf-8", {Location:to,...extra});
