@@ -13,6 +13,10 @@ import {
   walletServiceURL,passAuthenticationToken,recordWalletRevision,
   revokeWalletRegistrations,startWalletPushWorker
 } from "./wallet-updates.mjs";
+import {
+  installWalletMonitorSchema,walletOperationsSnapshot,renderWalletOperationsPage,
+  startWalletCertificateWatch
+} from "./wallet-monitor.mjs";
 import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
@@ -46,7 +50,7 @@ const adminPage = (products, movements, usersCount, user, csrf, notice = "", ext
  const history = movements.map(m=>'<tr><td>' + esc(m.created_at) + '</td><td>' + esc(m.sku) + '</td><td>' + (m.delta > 0 ? "+" : "") + m.delta + '</td><td>' + esc(m.reason) + '</td><td>' + esc(m.actor_email) + '</td></tr>').join("");
  const options = products.map(p=>'<option value="' + p.id + '">' + esc(p.sku) + ' — ' + esc(p.name) + '</option>').join("");
  const codenameForm = '<section class="private-panel"><h2>Locker Files · Codename assignment</h2><p>Assign or revise a private codename without changing the underlying product identity. Codenames are unique across draft products.</p><form action="/admin/products/codename" method="post">' + csrfField(csrf) + '<label>Draft product<select name="product_id" required>' + options + '</select></label><label>Codename<input name="codename" minlength="3" maxlength="56" placeholder="Ghost Key · leave blank to clear"></label><button type="submit" class="private-button">Update codename</button></form></section>';
- return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Locker Files codename (optional)<input name="codename" maxlength="56" placeholder="Ghost Key"></label><label>Category<select name="category">' + categoryOptions + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section>' + codenameForm + '<section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product identity</th><th>Codename</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>' + extras, user, csrf);
+ return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>'<nav class="wallet-monitor-nav" aria-label="Administration sections"><a href="/admin/wallet" class="wallet-monitor-nav-link">Wallet Operations <span aria-hidden="true">↗</span></a></nav>' +' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Locker Files codename (optional)<input name="codename" maxlength="56" placeholder="Ghost Key"></label><label>Category<select name="category">' + categoryOptions + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section>' + codenameForm + '<section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product identity</th><th>Codename</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>' + extras, user, csrf);
 };
 
 export function openDb(dbPath) {
@@ -69,6 +73,7 @@ export function openDb(dbPath) {
  db.exec("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'), created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  installWalletUpdateSchema(db);
+ installWalletMonitorSchema(db);
  return db;
 }
 function listProducts(db) {
@@ -125,6 +130,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
  };
  const walletService=createWalletUpdateService({db,respond,buildPass:signedPassFor});
  const stopWalletWorker=startWalletPushWorker(db);
+ const stopWalletCertificateWatch=startWalletCertificateWatch(db);
  installLockerFiles(db);
  const server = http.createServer(async (req,res) => {
   try {
@@ -293,6 +299,11 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    }
    if (pathname.startsWith("/admin")) {
      if (user.role !== "admin") return respond(res,403,layout("Access denied",'<h1>Administrator access required</h1>',user,user.csrf));
+     if (method === "GET" && pathname === "/admin/wallet") {
+       return respond(res,200,renderWalletOperationsPage(
+         walletOperationsSnapshot(db),{layout,user,csrf:user.csrf}
+       ));
+     }
      if (method === "GET" && pathname === "/admin") {
        const products = listProducts(db);
        const movements = db.prepare("SELECT m.*,p.sku,u.email actor_email FROM movements m JOIN products p ON p.id=m.product_id JOIN users u ON u.id=m.actor_id ORDER BY m.id DESC LIMIT 30").all();
@@ -336,7 +347,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    return !res.headersSent && respond(res,500,"An internal error occurred","text/plain; charset=utf-8");
   }
  });
- return { server, db, stopWalletWorker };
+ return { server, db, stopWalletWorker, stopWalletCertificateWatch };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
  const { server } = createApp();
