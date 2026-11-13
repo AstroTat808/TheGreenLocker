@@ -6,7 +6,7 @@ ENV NODE_ENV=development \
     TGL_WORKSHOP_DIR=/data \
     PORT=4174
 WORKDIR /app
-RUN apk add --no-cache su-exec
+RUN apk add --no-cache su-exec openssl
 COPY --chown=node:node . /app
 RUN mkdir -p /data && chown node:node /data
 EXPOSE 4174
