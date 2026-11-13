@@ -30,6 +30,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/styles.css");assert.equal(response.status,303);
  response=await req("/assets/shield-logo.webp");assert.equal(response.status,303,"Private shield asset requires member login.");
  response=await req("/locker-motion.js");assert.equal(response.status,303,"Selector animation requires member login.");
+ response=await req("/vault-entry.js");assert.equal(response.status,303,"Vault entrance script requires member login.");
  response=await req("/logo");assert.equal(response.status,200);
  assert.equal(response.headers.get("content-type"),"image/webp");
  let mark=Buffer.from(await response.arrayBuffer());
@@ -60,12 +61,35 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.ok(cookie.startsWith("tgl_session="));
  assert.match(response.headers.get("set-cookie"),/HttpOnly/);
  assert.match(response.headers.get("set-cookie"),/SameSite=Strict/);
+ // Railway hosts the preview behind HTTPS while NODE_ENV is development.
+ // Secure must still be set for its browser session cookie.
+ const oldCloud=process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW;
+ process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW="1";
+ try {
+   const secureLogin=await post("/login",{email:"member@example.com",password:"correct-long-password-123"});
+   assert.equal(secureLogin.status,303);
+   assert.match(secureLogin.headers.get("set-cookie"),/(?:^|; )Secure(?:;|$)/);
+ } finally {
+   if(oldCloud===undefined)delete process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW;
+   else process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW=oldCloud;
+ }
  response=await req("/",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(await response.text(),/THE GOOD STUFF/);
  response=await req("/assets/shield-logo.webp",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.equal(response.headers.get("content-type"),"image/webp");
  response=await req("/locker-motion.js",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(await response.text(),/prefers-reduced-motion/);
+ response=await req("/vault-entry.js",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(await response.text(),/sessionStorage/);
+ response=await req("/catalog",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ const catalogMarkup=await response.text();
+ assert.match(catalogMarkup,/locker-entry-portal/);
+ assert.match(catalogMarkup,/Skip intro/);
+ assert.match(catalogMarkup,/Replay vault opening/);
+ assert.match(catalogMarkup,/\/vault-entry\.js/);
+ assert.doesNotMatch(catalogMarkup,/add to cart|checkout|purchase now/i);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
  db.prepare("UPDATE users SET role='admin' WHERE email=?").run("member@example.com");
