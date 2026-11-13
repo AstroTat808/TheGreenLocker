@@ -353,6 +353,56 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.locator(".private-logo img")).toHaveAttribute("src","/logo");
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
+ await page.getByRole("link",{name:/Assortment Studio/}).click();
+ await expect(page).toHaveURL(/\/admin\/assortment$/);
+ await expect(page.locator(".assortment-editor-card")).toHaveCount(18);
+ await expect(page.locator("#edit-botanicals .assortment-editor-card")).toHaveCount(4);
+ await expect(page.locator("#edit-vapes .assortment-editor-card")).toHaveCount(12);
+ await expect(page.locator("#edit-treats .assortment-editor-card")).toHaveCount(2);
+ await expect(page.getByRole("heading",{name:"Vape brand identity"})).toBeVisible();
+ await expect(page.getByText("No pricing, ordering, shipping or sale availability", {exact:false})).toBeVisible();
+ await assertNoOverflow(page);
+ if(test.info().project.name==="private-mobile-webkit"){
+   const dir=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(dir,{recursive:true});
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:750});
+     await assertNoOverflow(page);
+     await page.locator("#edit-botanicals").screenshot({
+       path:path.join(dir,width+"-assortment-studio.png"),animations:"disabled"
+     });
+     const touch=await page.locator("#edit-botanical-01 summary").evaluate(el=>el.getBoundingClientRect().height);
+     expect(touch).toBeGreaterThanOrEqual(44);
+   }
+ }
+ const first=page.locator("#edit-botanical-01");
+ await first.locator("summary").click();
+ const editForm=first.locator('form[action="/admin/assortment/entry"]');
+ await editForm.locator('input[name="title"]').fill("Coastal Gold Concept");
+ await editForm.locator('textarea[name="description"]').fill("A premium emerald pouch concept; artwork and sourcing remain under review.");
+ await editForm.getByRole("button",{name:"Save concept"}).click();
+ await expect(page).toHaveURL(/\/admin\/assortment\?notice=/);
+ await expect(page.getByRole("status",{name:""}).filter({hasText:"Concept saved"})).toBeVisible();
+ const brandForm=page.locator('form[action="/admin/assortment/brand"]');
+ await brandForm.locator('input[name="brand"]').fill("Night Vault Editions");
+ await brandForm.getByRole("button",{name:"Save brand identity"}).click();
+ await expect(page.getByText("Brand name saved",{exact:true})).toBeVisible();
+ await page.locator("#edit-botanical-01 summary").click(); // Refresh closes details; reopen before clicking upload.
+ const imageForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
+ await imageForm.locator('input[type="file"]').setInputFiles({
+   name:"preview.png",mimeType:"image/png",
+   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64")
+ });
+ // Admin artwork is stripped of source metadata and re-encoded as WebP.
+ await imageForm.getByRole("button",{name:/Optimize & upload image/}).click();
+ await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
+ await expect(page.locator('#edit-botanical-01 .assortment-editor-thumb img')).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await page.goto("/shop");
+ await expect(page.getByText("Coastal Gold Concept",{exact:true})).toBeVisible();
+ await expect(page.getByText("Night Vault Editions",{exact:true})).toBeVisible();
+ await expect(page.locator(".collection-concept-botanical").first().locator("img.collection-art-photo")).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await expect(page.getByRole("button",{name:/checkout|order now|buy now|pay now/i})).toHaveCount(0);
+ await page.goto("/admin");
  await expect(page.getByRole("link",{name:/Wallet Operations/})).toBeVisible();
  await page.getByRole("link",{name:/Wallet Operations/}).click();
  await expect(page).toHaveURL(/\/admin\/wallet$/);

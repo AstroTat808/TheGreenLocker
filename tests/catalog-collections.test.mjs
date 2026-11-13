@@ -26,7 +26,7 @@ test("protected concept gallery has anchored three-category navigation, clearly 
   assert.equal((html.match(/class="collection-concept-card collection-concept-treat"/g)||[]).length,2);
   assert.match(html,/The Botanical/);
   assert.match(html,/One Brand/);
-  assert.match(html,/crispy treat concepts/i);
+  assert.match(html,/Two recipe concepts/i);
   assert.match(html,/No purchases, payments, checkout/);
   assert.match(html,/shipping promises/);
   assert.match(html,/active ingredients/);

@@ -243,17 +243,32 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.doesNotMatch(shopMarkup,/EXISTING INTERNAL DRAFT RECORDS/);
  assert.doesNotMatch(shopMarkup,/class="catalog-card"/);
  assert.doesNotMatch(shopMarkup,/<form[^>]+action="\/checkout"/i);
+ response=await req("/assets/collection-botanical.svg",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(response.headers.get("content-type"),/image\/svg\+xml/);
+ assert.match(await response.text(),/BOTANICAL STUDY/);
+ response=await req("/assets/collection-vape.svg",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ response=await req("/assets/collection-treat.svg",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
  response=await req("/admin/wallet");assert.equal(response.status,303,"Anonymous Wallet dashboard requires login.");
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,403,"Members cannot access Wallet monitoring.");
+ response=await req("/admin/assortment",{headers:{Cookie:cookie}});
+ assert.equal(response.status,403,"Members cannot access assortment editing.");
+ response=await req("/admin/assortment");
+ assert.equal(response.status,303,"Anonymous assortment editing requires a login.");
  db.prepare("UPDATE users SET role='admin' WHERE email=?").run("member@example.com");
  response=await req("/admin",{headers:{Cookie:cookie}});
  assert.equal(response.status,303);assert.equal(response.headers.get("location"),"/admin/mfa");
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,303);
  assert.equal(response.headers.get("location"),"/admin/mfa","Wallet admin route inherits MFA.");
+ response=await req("/admin/assortment",{headers:{Cookie:cookie}});
+ assert.equal(response.status,303);
+ assert.equal(response.headers.get("location"),"/admin/mfa","Assortment editing inherits administrator MFA.");
  response=await req("/admin/mfa",{headers:{Cookie:cookie}});
  let html=await response.text(),csrf=html.match(/name="csrf" value="([^"]+)"/)?.[1];
  assert.ok(csrf);
@@ -269,6 +284,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  html=await response.text();
  assert.match(html,/href="\/admin\/wallet"/,"Admin can navigate to Wallet Operations.");
+ assert.match(html,/href="\/admin\/assortment"/,"Admin can navigate to Assortment Studio.");
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,200,"MFA-verified admins can view Wallet operations.");
  const monitorHtml=await response.text();
@@ -278,6 +294,36 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.match(monitorHtml,/No Wallet device registrations yet/);
  assert.match(monitorHtml,/APNs accepted/);
  assert.doesNotMatch(monitorHtml,/password_hash|push_token|TGL_WALLET_PRIVATE_KEY_B64|BEGIN PRIVATE KEY/);
+ response=await req("/admin/assortment",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ const assortmentMarkup=await response.text();
+ assert.match(assortmentMarkup,/Assortment <em>Studio/);
+ assert.equal((assortmentMarkup.match(/class="assortment-editor-card"/g)||[]).length,18);
+ assert.match(assortmentMarkup,/action="\/admin\/assortment\/brand"/);
+ assert.match(assortmentMarkup,/data-concept-upload/);
+ assert.match(assortmentMarkup,/assets\/collection-botanical\.svg/);
+ assert.doesNotMatch(assortmentMarkup,/\/checkout|\/cart|name="price"/);
+ response=await post("/admin/assortment/entry",{csrf:"incorrect",slot_id:"botanical-01",
+  version:"1",title:"Coastal Jade",description:"Illustrative concept only"},cookie);
+ assert.equal(response.status,403);
+ response=await post("/admin/assortment/entry",{csrf,slot_id:"botanical-01",
+  version:"1",title:"Coastal Jade",description:"Tropical art and collectible pouch concept.",
+  preview_visible:"1",notes:"Internal design art only."},cookie);
+ assert.equal(response.status,303);
+ response=await post("/admin/assortment/entry",{csrf,slot_id:"botanical-01",
+  version:"1",title:"Overwritten draft",description:"stale"},cookie);
+ assert.equal(response.status,409,"Stale editor versions cannot overwrite newer records.");
+ response=await post("/admin/assortment/brand",{csrf,version:"1",brand:"Vault Nocturne"},cookie);
+ assert.equal(response.status,303);
+ response=await req("/shop",{headers:{Cookie:cookie}});
+ const personalizedShop=await response.text();
+ assert.match(personalizedShop,/Coastal Jade/);
+ assert.match(personalizedShop,/Vault Nocturne/);
+ assert.doesNotMatch(personalizedShop,/<form[^>]+action="\/(?:cart|checkout|order)"/);
+ response=await req("/assortment-client.js",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(await response.text(),/createImageBitmap/);
+ 
  response=await req("/admin",{headers:{Cookie:cookie}});
  html=await response.text();csrf=html.match(/name="csrf" value="([^"]+)"/)?.[1];
  assert.ok(csrf);
