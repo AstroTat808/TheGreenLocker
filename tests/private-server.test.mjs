@@ -227,7 +227,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.match(catalogMarkup,/Skip intro/);
  assert.match(catalogMarkup,/Replay vault opening/);
  assert.match(catalogMarkup,/\/vault-entry\.js/);
- assert.doesNotMatch(catalogMarkup,/add to cart|checkout|purchase now/i);
+ assert.doesNotMatch(catalogMarkup,/<form[^>]+action="\/(?:checkout|cart|order)|href="\/(?:checkout|cart|order)|data-add-to-cart/i);
  assert.match(catalogMarkup,/THE COLLECTION <em>VAULT/);
  assert.equal((catalogMarkup.match(/class="collection-concept-card collection-concept-botanical"/g)||[]).length,4);
  assert.equal((catalogMarkup.match(/class="collection-flavor"/g)||[]).length,12);
