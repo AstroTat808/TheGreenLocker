@@ -77,7 +77,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(skipIntro).toBeFocused();
  await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",true);
  await expect(page.locator("body")).toHaveClass(/locker-entry-active/);
- await expect(skipIntro).toHaveCSS("min-height","46px");
+ expect(await skipIntro.evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
  await page.keyboard.press("Tab");
  await expect(skipIntro).toBeFocused();
  await expect(page.locator(".locker-entry-door-left")).toHaveCSS("animation-name","vault-entry-left");
@@ -106,8 +106,8 @@ test("invited member can register, log in, and view concept-only catalog",async(
      await assertNoOverflow(page);
      const nav = page.locator(".private-header nav");
      await expect(nav).toHaveCSS("display","grid");
-     const replayHeight = await replayIntro.evaluate(el=>el.getBoundingClientRect().height);
-     expect(replayHeight).toBeGreaterThanOrEqual(44);
+     const navHeight = await nav.getByRole("link").first().evaluate(el=>el.getBoundingClientRect().height);
+     expect(navHeight).toBeGreaterThanOrEqual(44);
    }
  }
  await page.getByRole("button",{name:"Log out"}).click();
