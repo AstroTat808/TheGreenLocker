@@ -716,3 +716,149 @@ body{
 /* Permanent device capability note remains visible during sound auditions. */
 .vault-feedback-support{font:12px/1.6 Arial,sans-serif;color:#c4b69c;margin:10px 0 0;min-height:0}
 .vault-feedback-support:empty{display:none}
+
+
+/* Premium 3D identity card: decorative transformation, accessible controls. */
+.member-card-experience{min-width:0;display:grid;gap:12px;align-content:start}
+.member-credential-scene{
+  position:relative;display:block;padding:0;min-height:330px;
+  perspective:1200px;--member-card-yaw:0deg;--member-card-pitch:0deg;
+  transform:rotateX(var(--member-card-pitch)) rotateY(var(--member-card-yaw));
+  transition:transform 200ms ease-out;
+}
+.member-card-rotor{
+  position:absolute;inset:0;transform-style:preserve-3d;
+  transition:transform 800ms cubic-bezier(.2,.72,.16,1);
+}
+.member-credential-scene.is-flipped .member-card-rotor{transform:rotateY(180deg)}
+.member-card-face{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:space-between;gap:10px;
+  padding:clamp(21px,2.65vw,32px);
+  border-radius:18px;overflow:hidden;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:radial-gradient(ellipse at 80% 18%,#28493270,transparent 60%);
+}
+.member-card-front{transform:rotateY(0deg) translateZ(1px)}
+.member-card-back{
+  transform:rotateY(180deg) translateZ(1px);
+  align-items:center;justify-content:center;gap:18px;
+  text-align:center;border:1px solid #f9db958e;
+  background:
+    radial-gradient(ellipse at 50% 35%,#35644770 0%,transparent 66%),
+    repeating-radial-gradient(circle at 50% 40%,#d5ad6712 0 1px,transparent 2px 28px);
+}
+.member-card-back::before{
+  content:"";position:absolute;inset:16px;border:1px double #efc78275;
+  border-radius:10px;pointer-events:none;
+}
+.member-back-label{
+  position:relative;z-index:1;
+  font:700 9px/1.5 Arial,sans-serif;letter-spacing:.22em;color:#edd09a;
+}
+.member-back-mark{
+  position:relative;z-index:1;width:clamp(62px,8vw,94px);
+  height:clamp(62px,8vw,94px);object-fit:contain;
+  filter:drop-shadow(0 8px 26px #0008);
+}
+.member-back-motto{
+  position:relative;z-index:1;max-width:90%;
+  font:italic clamp(20px,2.6vw,31px)/1.3 Georgia,serif;
+  color:#fff0ca;overflow-wrap:anywhere;text-wrap:balance;
+}
+.member-back-reference{font:700 12px/1.5 ui-monospace,monospace;letter-spacing:.09em;color:#d9b978}
+.member-card-back small{position:relative;z-index:1;font:700 9px/1.5 Arial,sans-serif;letter-spacing:.08em;color:#bcc3aa}
+.member-edition{font-size:clamp(16px,1.7vw,22px)!important;color:#dfbd84!important;font-family:Arial,sans-serif!important;letter-spacing:.035em!important}
+.member-credential-details{gap:4px}
+.member-credential-details>strong:not(.member-edition){font-size:clamp(25px,3vw,38px)}
+.member-credential-details>span{margin-top:4px}
+.member-card-flip-button{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;min-height:48px;
+  border:1px solid #e0bf8285;border-radius:10px;
+  color:#ffe3af;background:#133627;
+  font:700 13px/1.4 Arial,sans-serif;letter-spacing:.035em;
+  cursor:pointer;touch-action:manipulation;
+}
+.member-card-flip-button:hover{background:#1d5038}
+.member-card-flip-button span{font-size:19px;line-height:1}
+.member-card-flip-button:focus-visible{outline:3px solid #ffebb7;outline-offset:3px}
+.member-card-motion-hint{text-align:center;font:11px/1.5 Arial,sans-serif;color:#b7c4b3;margin:0}
+.member-credential-scene[data-card-theme="obsidian"]{
+  background:
+    radial-gradient(circle at 85% 34%,#52637888,transparent 55%),
+    repeating-linear-gradient(90deg,transparent 0 30px,#d3c6a108 31px 33px,transparent 34px 65px),
+    linear-gradient(130deg,#1b2531,#0a111a 65%,#05090f);
+  border-color:#d5c49a;
+}
+.member-credential-scene[data-card-theme="obsidian"] .member-card-face{background:radial-gradient(ellipse at 80% 18%,#4a526765,transparent 60%)}
+.member-credential-scene[data-card-theme="gilded"]{
+  background:
+    radial-gradient(circle at 85% 34%,#b9863888,transparent 55%),
+    repeating-linear-gradient(90deg,transparent 0 30px,#f1d2a00b 31px 33px,transparent 34px 65px),
+    linear-gradient(135deg,#604121,#372813 62%,#180f09);
+  border-color:#ffdf9e;
+}
+.member-credential-scene[data-card-theme="gilded"] .member-card-face{background:radial-gradient(ellipse at 80% 18%,#9d744c65,transparent 60%)}
+.member-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.member-card-actions .member-card-download{margin:8px 0 0;min-width:0;width:100%;font-size:12px}
+.member-wallet-download{
+  background:linear-gradient(130deg,#222c28,#111c18)!important;
+  color:#ffdf9d!important;border-color:#ecd397!important;
+}
+.member-wallet-download:hover{background:#233d2f!important}
+.member-wallet-pending{
+  grid-column:1 / -1;display:grid;gap:5px;
+  padding:13px 15px;border:1px solid #d0b37457;border-radius:10px;
+  background:#112a1b;color:#e2cd9e;
+}
+.member-wallet-pending strong{font:700 13px/1.5 Arial,sans-serif}
+.member-wallet-pending small{font:11px/1.65 Arial,sans-serif;color:#b6c7b4}
+.member-card-preferences{
+  display:grid;gap:15px;min-width:0;
+  margin-top:22px;padding:18px;
+  border:1px solid #c8a96d62;border-radius:12px;
+  background:linear-gradient(150deg,#0e281b,#071a11);
+}
+.member-card-preferences fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}
+.member-card-preferences legend{
+  font:700 10px/1.5 Arial,sans-serif;letter-spacing:.12em;color:#d8b878;
+  padding:0 0 9px;
+}
+.member-card-preferences label{font:700 12px/1.5 Arial,sans-serif;color:#e5cca0;margin:5px 0 0}
+.member-card-preferences input,.member-card-preferences select{
+  display:block;width:100%;min-width:0;max-width:100%;
+  padding:12px 13px;min-height:48px;font-size:16px;
+  border:1px solid #e2c4886c;border-radius:8px;
+  color:#f6e5c4;background:#081d13;
+}
+.member-card-preferences .private-button{width:100%;min-height:48px}
+@media(max-width:900px){
+ .member-card-actions{grid-template-columns:minmax(0,1fr)}
+ .member-card-actions .member-card-download{margin:6px 0 0}
+ .member-credential-scene{min-height:320px}
+}
+@media(max-width:600px){
+ .member-card-face{padding:clamp(17px,5vw,24px)}
+ .member-credential-scene{aspect-ratio:auto;min-height:325px}
+ .member-credential-top img{width:44px;height:44px}
+ .member-credential-top strong{font-size:16px}
+ .member-credential-details>code{font-size:11px}
+ .member-credential-details>strong:not(.member-edition){font-size:clamp(23px,7vw,32px)}
+ .member-back-motto{font-size:22px}
+ .member-card-preferences{padding:14px}
+}
+@media(max-width:360px){
+ .member-credential-scene{min-height:320px}
+ .member-credential-top small{font-size:7px;letter-spacing:.04em}
+ .member-credential-details>code{font-size:10px}
+ .member-card-face{padding:16px}
+ .member-back-label{font-size:8px}
+ .member-card-back small{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){
+ .member-credential-scene,.member-card-rotor,.member-card-flip-button{
+   transition:none!important;animation:none!important
+ }
+ .member-credential-scene{transform:none!important}
+}
