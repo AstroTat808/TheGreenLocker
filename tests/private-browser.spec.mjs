@@ -326,7 +326,7 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.getByRole("heading",{name:"Operational alerts"})).toBeVisible();
  await expect(page.getByText("Apple Wallet signing is not configured.",{exact:false})).toBeVisible();
  await expect(page.getByText("No Wallet device registrations yet.")).toBeVisible();
- await expect(page.getByText(/APNs accepted/)).toBeVisible();
+ await expect(page.locator(".wallet-monitor-metric").getByText("APNs accepted",{exact:true})).toBeVisible();
  await expect(page.locator(".wallet-monitor-metric")).toHaveCount(8);
  await expect(page.locator(".wallet-cert-row")).toHaveCount(2);
  await assertNoOverflow(page);
