@@ -20,6 +20,7 @@
   const audition = document.querySelector("[data-vault-audition]");
   const hapticSwitch = document.querySelector("[data-vault-haptics]");
   const hint = document.querySelector("[data-vault-feedback-hint]");
+  const support = document.querySelector("[data-vault-support]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const seenKey = "tgl:vault-entry:v3";
   const preferenceKey = "tgl:vault-feedback:v2";
@@ -61,12 +62,11 @@
     catch { /* Preferences remain active only for this page. */ }
   }
   function describeSupport() {
-    if (!hint) return;
     const unavailable = [];
     if (!AudioCtor) unavailable.push("Sound is unavailable in this browser.");
     if (!vibrationSupported) unavailable.push("Haptics are not supported by this browser (including most iPhone browsers).");
-    hint.textContent = unavailable.length ? unavailable.join(" ") :
-      "Select a soundscape to preview it. No sound plays automatically.";
+    if (support) support.textContent = unavailable.join(" ");
+    if (hint && !hint.textContent) hint.textContent = "Select a soundscape to preview it. No sound plays automatically.";
   }
   for (const option of profileInputs) {
     option.checked = option.value === prefs.profile;
