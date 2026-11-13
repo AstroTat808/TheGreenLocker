@@ -35,7 +35,7 @@ export function installLockerFiles(db) {
   if(!cols.includes("codename"))
     db.exec("ALTER TABLE products ADD COLUMN codename TEXT");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_locker_codename ON products(codename COLLATE NOCASE) WHERE codename IS NOT NULL;");
-  db.exec(\`CREATE TABLE IF NOT EXISTS product_size_variants(
+  db.exec(`CREATE TABLE IF NOT EXISTS product_size_variants(
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     tier TEXT NOT NULL CHECK(tier IN ('small','medium','large')),
     weight_oz INTEGER NOT NULL CHECK(
@@ -45,21 +45,21 @@ export function installLockerFiles(db) {
     ),
     status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'),
     PRIMARY KEY(product_id,tier)
-  );\`);
-  db.exec(\`CREATE TRIGGER IF NOT EXISTS trg_locker_size_on_create
+  );`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS trg_locker_size_on_create
     AFTER INSERT ON products WHEN NEW.category='Botanicals'
     BEGIN
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'small',1);
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'medium',4);
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'large',16);
-    END;\`);
-  db.exec(\`CREATE TRIGGER IF NOT EXISTS trg_locker_size_on_category
+    END;`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS trg_locker_size_on_category
     AFTER UPDATE OF category ON products WHEN NEW.category='Botanicals'
     BEGIN
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'small',1);
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'medium',4);
       INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) VALUES(NEW.id,'large',16);
-    END;\`);
+    END;`);
   for(const v of LOCKER_TIERS)
     db.prepare("INSERT OR IGNORE INTO product_size_variants(product_id,tier,weight_oz) SELECT id,?,? FROM products WHERE category='Botanicals'").run(v.tier,v.ounces);
 }
