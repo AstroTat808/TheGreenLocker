@@ -97,7 +97,7 @@ export function walletOperationsSnapshot(db,{env=process.env,at=Date.now()}={}){
     updatesEnabled:Number(row.wallet_updates_enabled)===1
   }));
   const jobs=db.prepare(
-    "SELECT j.id,j.state,j.attempts,j.created_at,j.next_attempt_at,j.sent_at,"+
+    "SELECT j.id,j.state,j.attempts,j.created_at,j.next_attempt_at,j.sent_at,j.last_attempt_at,"+
     "substr(COALESCE(u.member_code,'----'),-4) member_suffix "+
     "FROM wallet_push_jobs j JOIN users u ON u.id=j.user_id ORDER BY j.id DESC LIMIT 15"
   ).all().map(row=>({
@@ -106,7 +106,7 @@ export function walletOperationsSnapshot(db,{env=process.env,at=Date.now()}={}){
     state:row.state,attempts:Number(row.attempts),
     createdAt:Number(row.created_at),
     nextAttemptAt:Number(row.next_attempt_at),
-    sentAt:Number(row.sent_at||0)
+    sentAt:Number(row.sent_at||0),lastAttemptAt:Number(row.last_attempt_at||0)
   }));
   const alerts=[];
   if(!cert.signingConfigured)alerts.push({
@@ -160,7 +160,7 @@ export function renderWalletOperationsPage(snapshot,{layout,user,csrf}){
     const state=row.state==="sent"?"Accepted by APNs":
       row.state==="failed"?"Failed after retries":
       row.attempts>0?"Retry scheduled":"Queued";
-    const time=row.state==="sent"?row.sentAt:row.state==="pending"?row.nextAttemptAt:row.createdAt;
+    const time=row.state==="sent"?row.sentAt:row.state==="pending"?row.nextAttemptAt:row.lastAttemptAt||row.createdAt;
     return '<tr><td>'+escapeHtml(row.member)+'</td><td>'+
       '<span class="wallet-monitor-pill wallet-monitor-'+
       (row.state==="failed"?"critical":row.state==="sent"?"healthy":"warning")+'">'+
@@ -230,6 +230,8 @@ export function installWalletMonitorSchema(db){
   const jobCols=db.prepare("PRAGMA table_info(wallet_push_jobs)").all().map(x=>x.name);
   if(!jobCols.includes("sent_at"))
     db.exec("ALTER TABLE wallet_push_jobs ADD COLUMN sent_at INTEGER;");
+  if(!jobCols.includes("last_attempt_at"))
+    db.exec("ALTER TABLE wallet_push_jobs ADD COLUMN last_attempt_at INTEGER;");
   db.exec("CREATE TABLE IF NOT EXISTS wallet_certificate_alerts ("+
     "alert_key TEXT PRIMARY KEY,created_at INTEGER NOT NULL);");
 }
