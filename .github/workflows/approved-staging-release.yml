@@ -58,7 +58,7 @@ jobs:
     name: Deploy verified SHA to separate staging host
     needs: verify-exact-merge
     # Fail closed: not even an approved merge may deploy until explicitly enabled.
-    if: github.event.pull_request.merged == true && vars.TGL_STAGING_DEPLOY_ENABLED == 'true'
+    if: github.event.pull_request.merged == true && github.ref_protected == true && vars.TGL_STAGING_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:
@@ -66,7 +66,6 @@ jobs:
       url: https://staging.thegreenlocker.com
     env:
       EXPECTED_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-      GH_TOKEN: ${{ github.token }}
       TGL_STAGING_SSH_HOST: ${{ secrets.TGL_STAGING_SSH_HOST }}
       TGL_STAGING_SSH_USER: ${{ secrets.TGL_STAGING_SSH_USER }}
       TGL_STAGING_SSH_KEY: ${{ secrets.TGL_STAGING_SSH_KEY }}
@@ -94,7 +93,7 @@ jobs:
           [[ "$ACTUAL_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
           [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "::error::Exact merged SHA does not match release event"; exit 1; }
           # Do not deploy a superseded approval if this branch advanced during QA.
-          CURRENT_HEAD="$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/branches/feat/security-inventory-staging" | jq -r '.commit.sha')"
+          CURRENT_HEAD="$(git ls-remote --exit-code origin refs/heads/feat/security-inventory-staging | cut -f1)"
           [[ "$CURRENT_HEAD" == "$EXPECTED_SHA" ]] || { echo "::error::Branch advanced after this approval; stale release blocked"; exit 1; }
       - name: Transfer exact commit over SSH with pinned host identity
         shell: bash
@@ -105,6 +104,9 @@ jobs:
           printf '%s\n' "$TGL_STAGING_SSH_KEY" > "$RUNNER_TEMP/tgl-ssh/key"
           printf '%s\n' "$TGL_STAGING_SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/tgl-ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/tgl-ssh/key" "$RUNNER_TEMP/tgl-ssh/known_hosts"
+          # Recheck just before transmission so an old approval cannot overwrite a newer merge.
+          CURRENT_HEAD="$(git ls-remote --exit-code origin refs/heads/feat/security-inventory-staging | cut -f1)"
+          [[ "$CURRENT_HEAD" == "$EXPECTED_SHA" ]] || { echo "::error::Superseded release blocked at transfer"; exit 1; }
           git archive --format=tar.gz -o "$RUNNER_TEMP/greenlocker-release.tgz" HEAD
           SSH_OPTS=(-i "$RUNNER_TEMP/tgl-ssh/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/tgl-ssh/known_hosts" -o BatchMode=yes)
           REMOTE="${TGL_STAGING_SSH_USER}@${TGL_STAGING_SSH_HOST}"
