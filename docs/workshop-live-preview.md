@@ -28,7 +28,7 @@ This is a **real, local development server**, not a static design mockup. It ren
 - Administrator demo: /login, then /admin/mfa for first-use authenticator enrollment, then /admin
 - Draft inventory: create categories, suppliers, draft products and lots; test private images, stock adjustments and CSV export
 - The local development email outbox is stored in .workshop-preview/email-outbox.ndjson for testing new registration/reset flows. Only demo addresses should be used; no real customer information.
-- The authenticated homepage includes the local repository asset assets/approved-logo.png. If you expect the newer uploaded gold-and-green round logo, confirm this exact artwork is also present in that GitHub asset before final approval.
+- The authenticated homepage, sign-in screen, dashboard, and catalog use the owner-approved emerald and gold shield/vault crest from `assets/shield-logo.webp`, with a matching `assets/shield-favicon.png`. The old circular logo has been retired.
 
 All demo credentials are **generated randomly on first launch** and printed in the private workspace terminal. They are also saved under the untracked .workshop-preview/credentials.json file. Never put the generated credentials or MFA recovery codes in GitHub, screenshots, shared logs or public chat messages.
 
