@@ -21,7 +21,8 @@ This repository has a **dedicated staging-preview branch** for the separately ho
 2. Run the backend, staging, and browser QA workflows.
 3. Open a pull request **targeting `staging-preview`** to release the approved changes to this demo.
 4. Review its exact diff, ensure that it does not remove the Basic Auth gate, `Dockerfile.preview`, or the no-sales prohibition, and **merge only after checks pass**.
-5. Railway follows `staging-preview` and rebuilds from that branch. Verify the resulting Railway deployment reaches `SUCCESS` and the health check passes. Do not assume that a queued build is complete.
+5. Railway is connected to `staging-preview`. **Confirm auto-deployment is enabled** under Railway → `the-green-locker-preview` → `greenlocker-preview-web` → Settings → GitHub integration. Select trigger branch `staging-preview`, turn **Auto-deploy = Enabled** and **Wait for CI = Enabled** after accepting any GitHub App permissions. The GitHub Actions workflow `Dedicated staging preview QA` is configured to run on pushes to this branch.
+6. After those two toggles and the GitHub ruleset below are active, Railway should rebuild on merged PRs. Verify each deployment reaches `SUCCESS` and healthcheck passes. A previous documentation push did not trigger an automatic deploy, so the auto-deploy switch must be checked before considering this automated.
 
 ### Mandatory GitHub ruleset (repository owner action)
 
@@ -34,7 +35,7 @@ GitHub repository admin settings are not writable through this integration. Conf
 - If working alone, do **not** require an additional reviewer's approval that cannot be provided by the PR author. Instead, your deliberate protected PR **merge** is the approval event.
 - Confirm the ruleset is **active**, not in evaluation mode.
 
-**Until that ruleset is active, Railway's GitHub connection responds to any branch push, not exclusively reviewed changes.** Do not treat automatic deployments as approval-gated until these settings are enforced.
+**Until both the GitHub ruleset and Railway auto-deploy settings are active, automatic approved releases are NOT fully configured.** Railway may deploy direct branch pushes once auto-deploy is enabled, so protect the branch before enabling it.
 
 ## Smoke checks
 
