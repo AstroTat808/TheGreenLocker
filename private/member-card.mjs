@@ -34,19 +34,26 @@ export function ensureMemberCode(db,userId) {
   throw new Error("Unable to allocate member card reference.");
 }
 
-export function renderMemberCardSvg({displayName,memberCode,logoBase64}) {
+export function renderMemberCardSvg({displayName,memberCode,logoBase64,cardTheme='emerald',cardTitle='Private Member',cardMotto=''}) {
   if (!codePattern.test(memberCode)) throw new Error("Invalid card reference.");
   if (!/^[A-Za-z0-9+/=]+$/.test(logoBase64 ?? "")) throw new Error("Invalid logo data.");
   const rawName = String(displayName ?? "Member");
   const name = esc(rawName);
   const code = esc(memberCode);
   const nameSize = [...rawName].length > 36 ? 40 : [...rawName].length > 25 ? 48 : 64;
+  const theme = {
+    emerald:{start:"#092e1b",mid:"#04180e",end:"#020a06",halo:"#3b7850"},
+    obsidian:{start:"#161b23",mid:"#0a1119",end:"#05080d",halo:"#3b4e65"},
+    gilded:{start:"#593c1c",mid:"#2e220f",end:"#170e08",halo:"#8a7137"}
+  }[cardTheme] || {start:"#092e1b",mid:"#04180e",end:"#020a06",halo:"#3b7850"};
+  const title = esc(String(cardTitle).slice(0,40));
+  const motto = esc(String(cardMotto).slice(0,70));
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="The Green Locker private concept member card">',
     '<defs>',
-      '<linearGradient id="card-bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#092e1b"/><stop offset=".52" stop-color="#04180e"/><stop offset="1" stop-color="#020a06"/></linearGradient>',
+      '<linearGradient id="card-bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="\x27,theme.start,\x27"/><stop offset=".52" stop-color="\x27,theme.mid,\x27"/><stop offset="1" stop-color="\x27,theme.end,\x27"/></linearGradient>',
       '<linearGradient id="card-gold" x1="0" x2="1"><stop stop-color="#a98243"/><stop offset=".5" stop-color="#f4da9b"/><stop offset="1" stop-color="#a47b41"/></linearGradient>',
-      '<radialGradient id="card-halo"><stop stop-color="#3b7850" stop-opacity=".8"/><stop offset=".42" stop-color="#1f4930" stop-opacity=".24"/><stop offset="1" stop-color="#061a10" stop-opacity="0"/></radialGradient>',
+      '<radialGradient id="card-halo"><stop stop-color="\x27,theme.halo,\x27" stop-opacity=".8"/><stop offset=".42" stop-color="#1f4930" stop-opacity=".24"/><stop offset="1" stop-color="#061a10" stop-opacity="0"/></radialGradient>',
       '<pattern id="card-grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="#d6b275" stroke-opacity=".065" stroke-width="1"/></pattern>',
     '</defs>',
     '<rect x="0" y="0" width="1200" height="720" rx="28" fill="url(#card-bg)"/>',
@@ -64,11 +71,13 @@ export function renderMemberCardSvg({displayName,memberCode,logoBase64}) {
     '<image x="75" y="68" width="157" height="157" href="data:image/webp;base64,',logoBase64,'"/>',
     '<text x="265" y="126" fill="#f5dfae" font-family="Georgia,serif" font-size="52" letter-spacing="2">THE GREEN LOCKER</text>',
     '<text x="268" y="173" fill="#d7b376" font-family="Arial,Helvetica,sans-serif" font-size="19" letter-spacing="6">PRIVATE MEMBER · DIGITAL CREDENTIAL</text>',
+    '<text x="84" y="229" fill="#dec28d" font-family="Arial,Helvetica,sans-serif" font-size="22" letter-spacing="2">',title,'</text>',
     '<text x="84" y="337" fill="#dec28d" font-family="Arial,Helvetica,sans-serif" font-size="17" letter-spacing="4">MEMBER NAME</text>',
     '<text x="84" y="415" fill="#fff0c8" font-family="Georgia,serif" font-size="',String(nameSize),'" letter-spacing="-1">',name,'</text>',
     '<path d="M 82 466 H 624" stroke="url(#card-gold)" stroke-width="3"/>',
     '<text x="84" y="519" fill="#dec28d" font-family="Arial,Helvetica,sans-serif" font-size="17" letter-spacing="4">MEMBER REFERENCE</text>',
     '<text x="84" y="567" fill="#f6d89b" font-family="Arial,Helvetica,sans-serif" font-size="30" letter-spacing="3">',code,'</text>',
+    ...(motto ? ['<text x="84" y="615" fill="#e7cf9d" font-family="Arial,Helvetica,sans-serif" font-size="15">',motto,'</text>'] : []),
     '<text x="84" y="648" fill="#b2bdac" font-family="Arial,Helvetica,sans-serif" font-size="15" letter-spacing="2">PRIVATE DESIGN PREVIEW · NOT A LOGIN CREDENTIAL · NO SALES</text>',
     '<path d="M 700 653 H 1111" stroke="#c89d56" stroke-opacity=".5"/>',
     '</svg>'
