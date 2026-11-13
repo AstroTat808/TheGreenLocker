@@ -171,6 +171,7 @@ body{
   .private-header nav{gap:7px}
 }
 
+.locker-entry-active{overflow:hidden;overscroll-behavior:none}
 /* Vault-entry sequence: rotating seal, light slit and hinged steel doors. */
 .locker-entry-portal[hidden],.locker-entry-replay[hidden]{display:none!important}
 .locker-entry-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
