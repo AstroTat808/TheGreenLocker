@@ -12,6 +12,49 @@
  const MAX_SIDE=1600;
  const WEBP_MAX=2*1024*1024;
  const IMAGE_TYPES=new Set(["image/png","image/jpeg","image/webp"]);
+
+ // Browsers can reattach ICC color profiles even to a newly encoded canvas.
+ // Strip those container chunks and their VP8X flags so EXIF, XMP, ICC and
+ // animation data are never persisted in private collection media.
+ async function sanitizeWebp(blob){
+  const input=new Uint8Array(await blob.arrayBuffer());
+  if(input.length<30||String.fromCharCode(...input.subarray(0,4))!=="RIFF"||
+     String.fromCharCode(...input.subarray(8,12))!=="WEBP")
+   throw Error("The browser did not produce a valid WebP image.");
+  const get32=(bytes,o)=>(bytes[o]|bytes[o+1]<<8|bytes[o+2]<<16|bytes[o+3]<<24)>>>0;
+  if(get32(input,4)!==input.length-8)throw Error("WebP image has an invalid container length.");
+  const chunks=[];let offset=12,total=12,hasImage=false;
+  while(offset+8<=input.length){
+   const tag=String.fromCharCode(...input.subarray(offset,offset+4));
+   const size=get32(input,offset+4);
+   const end=offset+8+size+(size%2);
+   if(size>WEBP_MAX||end>input.length)throw Error("WebP container is invalid.");
+   if(["ANIM","ANMF"].includes(tag))throw Error("Animated artwork is not accepted.");
+   if(["VP8X","VP8 ","VP8L","ALPH"].includes(tag)){
+    const chunk=input.slice(offset,end);
+    if(tag==="VP8X"){
+     if(chunk.length<18)throw Error("Invalid WebP extended header.");
+     chunk[8]&=0x10; // Keep only a possible alpha flag.
+    }
+    if(tag==="VP8 "||tag==="VP8L")hasImage=true;
+    chunks.push(chunk);total+=chunk.length;
+   }else if(!["ICCP","EXIF","XMP "].includes(tag)){
+    throw Error("Unsupported WebP metadata chunk.");
+   }
+   offset=end;
+  }
+  if(offset!==input.length||!hasImage)throw Error("WebP lacks a valid image payload.");
+  if(total>WEBP_MAX)throw Error("Optimized artwork is still too large.");
+  const output=new Uint8Array(total);
+  output.set(input.subarray(0,12));
+  const size=total-8;
+  output[4]=size&255;output[5]=size>>>8&255;
+  output[6]=size>>>16&255;output[7]=size>>>24&255;
+  let cursor=12;
+  for(const chunk of chunks){output.set(chunk,cursor);cursor+=chunk.length;}
+  return new Blob([output],{type:"image/webp"});
+ }
+
  const fileToWebp=async file=>{
   if(!IMAGE_TYPES.has(file.type)||file.size>LIMIT||!file.size)
    throw Error("Select a PNG, JPEG or WebP image no larger than 12 MB.");
@@ -41,7 +84,9 @@
    ctx.drawImage(bitmap,0,0,w,h);
    for(const quality of [0.88,0.76,0.62,0.46]){
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",quality));
-    if(blob&&blob.type==="image/webp"&&blob.size>0&&blob.size<=WEBP_MAX)return blob;
+    if(blob&&blob.type==="image/webp"&&blob.size>0&&blob.size<=WEBP_MAX){
+     return await sanitizeWebp(blob);
+    }
    }
    throw Error("This image is too detailed to optimize to 2 MB. Try a smaller photograph.");
   }finally{bitmap.close?.();}
