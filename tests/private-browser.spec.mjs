@@ -126,13 +126,15 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.goto("/catalog");
  const botanicalCard=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:botanicalCode,exact:true})});
  await expect(botanicalCard).toBeVisible();
- await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(3);
- await expect(botanicalCard.locator('.locker-tier-face').nth(0)).toContainText("1 oz");
- await expect(botanicalCard.locator('.locker-tier-face').nth(1)).toContainText("4 oz");
- await expect(botanicalCard.locator('.locker-tier-face').nth(2)).toContainText("16 oz");
- await expect(botanicalCard.locator('.locker-tier-face').nth(2)).toContainText("Not for retail");
- await botanicalCard.locator(".locker-tier").nth(1).click();
- await expect(botanicalCard.locator('input[value="medium"]')).toBeChecked();
+ await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(5);
+ for (const [index,format] of ["1/8 oz","1/4 oz","1/2 oz","1 oz","1/4 lb"].entries()) {
+   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(format);
+ }
+ await expect(botanicalCard.locator('.locker-tier-face').nth(4)).toContainText("4 oz");
+ await expect(botanicalCard.locator('.locker-tier-face').nth(4)).toContainText("Subject to applicable limits");
+ await botanicalCard.locator(".locker-tier").nth(2).click();
+ await expect(botanicalCard.locator('input[value="m"]')).toBeChecked();
+ await expect(botanicalCard.getByText("16 oz")).toHaveCount(0);
  await expect(page.getByRole("button",{name:/buy|checkout|order|reserve/i})).toHaveCount(0);
  await assertNoOverflow(page);
 
