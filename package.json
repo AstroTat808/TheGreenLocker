@@ -11,8 +11,10 @@
     "test:browser": "playwright test",
     "test:private:browser": "playwright test --config=playwright.private.config.mjs",
     "staging:preflight": "node scripts/staging-preflight.mjs",
-    "check:backend": "node --check private/server.mjs && node --check private/security.mjs && node --check private/inventory.mjs && node --check private/inventory-client.js && node --check scripts/staging-preflight.mjs",
-    "test:staging": "node --test tests/staging-preflight.test.mjs"
+    "check:backend": "node --check private/server.mjs && node --check private/security.mjs && node --check private/inventory.mjs && node --check private/inventory-client.js && node --check scripts/staging-preflight.mjs && node --check scripts/workshop-preview.mjs",
+    "test:staging": "node --test tests/staging-preflight.test.mjs",
+    "preview:workshop": "node scripts/workshop-preview.mjs",
+    "test:workshop": "node --test tests/workshop-preview.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
