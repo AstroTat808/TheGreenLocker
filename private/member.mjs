@@ -67,7 +67,7 @@ export function renderVaultFeedback() {
     '</section>';
 }
 
-export function renderMemberPage({user, productCount, layout, csrfField, memberCode, walletReady = false, saved = false, cardSaved = false}) {
+export function renderMemberPage({user, productCount, layout, csrfField, memberCode, walletReady = false, updatesReady = false, updatesSaved = false, saved = false, cardSaved = false}) {
   const rawName = friendlyName(user);
   const name = esc(rawName);
   const terminalPunctuation = /[.!?]$/u.test(rawName) ? "" : ".";
@@ -172,6 +172,18 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
               (walletReady
                ? '<a class="member-card-download member-wallet-download" href="/member/wallet.pkpass">Add to Apple Wallet</a>'
                : '<div class="member-wallet-pending"><strong>Apple Wallet setup pending</strong><small>A signed Wallet pass becomes available after the official Apple Pass Type certificate and team identifiers are securely provisioned. No unsigned pass will be distributed.</small></div>') +
+            '</div>' +
+            '<div class="member-wallet-updates" aria-labelledby="wallet-updates-heading">' +
+              '<h4 id="wallet-updates-heading">Apple Wallet updates</h4>' +
+              (updatesReady
+               ? '<form method="post" action="/member/wallet/updates" class="wallet-updates-form">' + csrfField(user.csrf) +
+                 '<label class="wallet-updates-toggle"><input type="checkbox" name="wallet_updates_enabled" value="1"' +
+                   (user.wallet_updates_enabled === 1 ? ' checked' : '') + '>' +
+                   '<span><strong>Update my card automatically</strong><small>Optional. Apple Wallet checks for new card designs after you save changes. Disable any time.</small></span></label>' +
+                 '<button class="private-button" type="submit">Save Wallet update preference</button>' +
+                 (updatesSaved ? '<p class="form-ok" role="status">Wallet update preference saved.</p>' : '') +
+                 '</form>'
+               : '<p>Automatic pass updates are disabled until Apple signing and push delivery are securely configured. Your SVG card still works.</p>') +
             '</div>' +
             '<form class="member-card-preferences" action="/member/card/preferences" method="post">' + csrfField(user.csrf) +
               '<fieldset><legend>PERSONALIZE YOUR CARD</legend>' +

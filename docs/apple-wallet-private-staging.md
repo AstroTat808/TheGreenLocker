@@ -73,3 +73,76 @@ with private file permissions; the directory is deleted after issuance.
 Do not enable public issuance without signing certificate rotation
 instructions, review of Apple Wallet artwork sizes, privacy notice, QA on
 physical iPhone, and a product/legal review of applicable rules.
+
+
+## Optional automatic Wallet pass updates
+
+The Green Locker includes an Apple Wallet PassKit v1 update web service
+and a durable, opt-in notification queue. It remains **OFF** by default.
+
+### Additional staging configuration
+
+The five signing variables above are still required. For updates, also set:
+
+| Variable | Required value |
+|---|---|
+| `TGL_WALLET_SERVICE_URL` | Public HTTPS origin with a trailing slash, e.g. `https://greenlocker-preview-web-staging.up.railway.app/` |
+| `TGL_WALLET_UPDATE_SECRET_B64` | Fresh, independent 32–128 cryptographically random bytes in base64 (not the Pass Type private key or session secret) |
+| `TGL_WALLET_UPDATES_ENABLED` | `1` only after the full pass issuer, APNs transport, HTTPS callback and device tests pass |
+
+Use `openssl rand -base64 48` locally to generate an independent update
+authentication secret, then set it as a **sealed Railway variable**. Never
+paste private keys, certificates, tokens, or production secrets into GitHub
+issues, pull requests or customer-facing messages.
+
+### What happens when the member opts in?
+
+1. A member enables **Update my card automatically** in their account.
+2. A newly downloaded signed pass contains the `webServiceURL` and a
+   member-specific HMAC authentication token. The display-only member
+   reference is never itself the authentication token.
+3. Apple Wallet registers the installed pass and device's push token with
+   `POST /v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeID}/{serialNumber}`.
+4. When the member changes their name or card design, the app creates a
+   revision and durable, retryable push jobs for registered devices.
+5. The worker sends a blank payload to APNs, prompting Apple Wallet to
+   request changed serials and the newly signed version.
+6. The member can disable updates at any time; the backend revokes the
+   registered devices for that member and stops queuing notifications.
+
+Callbacks are only exposed through the private preview gateway when the
+complete update configuration is active. Every pass registration, pass fetch,
+and unregistration requires an `ApplePass` HMAC token bound to the specific
+member reference. The device's unpredictable library identifier scopes the
+Apple-documented changed-serial lookup.
+
+**Note:** If a pass was installed before enabling updates, it must be
+reinstalled after activation to receive the new web-service metadata.
+There is no guaranteed immediate delivery: iOS and APNs control scheduling.
+Changes to an installed card are intended to update the same pass serial.
+
+### Safety and QA requirements
+
+- Keep the current staging Basic-auth gateway for all non-PassKit routes.
+  The PassKit v1 callbacks are the *only* conditional gateway exception.
+- The backend is not to be converted into a public cannabis storefront.
+  Membership credentials do not prove age, identity or eligibility.
+- Confirm certificate/Team ID/Pass Type ID alignment and verify an actual
+  Apple-signed `.pkpass` on an iPhone before enabling updates.
+- Test registration, changed serials, APNs delivery, signed pass retrieval,
+  unregistration, opt-out and revision persistence in a *real Apple Wallet*
+  installation. Browser automation verifies protocol handling only.
+- Use stable persistent database volume and back it up. An unavailable
+  APNs connection results in retry with backoff, not secret disclosure.
+- Monitor push failures and certificate expiration. The service only
+  sends push when a member is opted in; there are no recurring unsolicited
+  promotional pushes.
+
+### Design and screenshot QA
+
+The authenticated iPhone WebKit suite captures screenshots at 320px,
+375px and 430px and includes front/back visibility assertions. A previous
+screenshot audit identified both faces being painted simultaneously by WebKit,
+producing mirrored/overlapping text. The CSS fix explicitly switches hidden
+faces at the midpoint of the 3D flip; reduced-motion bypasses transitions.
+QA artifacts are attached to the PR's `Protected member browser QA` run.

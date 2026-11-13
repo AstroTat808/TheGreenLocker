@@ -32,7 +32,7 @@ export function walletConfigured(env=process.env) {
     CERT_KEYS.every(k=>typeof env[k]==="string" && env[k].length>100);
 }
 
-export function walletPassJson({memberCode,displayName,cardTheme="emerald",cardTitle="Private Member",cardMotto="",env=process.env}) {
+export function walletPassJson({memberCode,displayName,cardTheme="emerald",cardTitle="Private Member",cardMotto="",walletUpdate=null,env=process.env}) {
   if(!/^GL-(?:[A-F0-9]{4}-){3}[A-F0-9]{4}$/.test(memberCode)) throw new Error("Invalid card reference");
   if(!/^pass\.[a-zA-Z0-9.-]{8,200}$/.test(env.TGL_WALLET_PASS_TYPE_ID||"")||
      !/^[A-Z0-9]{10}$/.test(env.TGL_WALLET_TEAM_ID||""))
@@ -42,6 +42,12 @@ export function walletPassJson({memberCode,displayName,cardTheme="emerald",cardT
     obsidian:{bg:"rgb(12, 16, 22)",fg:"rgb(246, 232, 203)",label:"rgb(202, 183, 152)"},
     gilded:{bg:"rgb(68, 48, 19)",fg:"rgb(255, 249, 228)",label:"rgb(244, 219, 165)"}
   }[cardTheme]||{bg:"rgb(6, 29, 17)",fg:"rgb(255, 239, 196)",label:"rgb(226, 192, 121)"};
+  // Register for automatic Wallet updates only for explicitly opted-in members.
+  // Tokens are private per-pass HMAC values; never reuse the visible member reference.
+  if(walletUpdate !== null &&
+     (!(typeof walletUpdate.authenticationToken==="string" && /^[A-Za-z0-9_-]{32,128}$/.test(walletUpdate.authenticationToken)) ||
+      !(typeof walletUpdate.webServiceURL==="string" && /^https:\/\/[A-Za-z0-9.-]+\/?$/.test(walletUpdate.webServiceURL))))
+     throw new Error("Wallet update configuration invalid");
   return {
     formatVersion:1,
     passTypeIdentifier:env.TGL_WALLET_PASS_TYPE_ID,
@@ -54,6 +60,7 @@ export function walletPassJson({memberCode,displayName,cardTheme="emerald",cardT
     foregroundColor:palette.fg,
     labelColor:palette.label,
     sharingProhibited:true,
+    ...(walletUpdate ? {webServiceURL:walletUpdate.webServiceURL,authenticationToken:walletUpdate.authenticationToken} : {}),
     generic:{
       primaryFields:[{key:"memberName",label:"MEMBER",value:String(displayName).slice(0,80)}],
       secondaryFields:[{key:"memberReference",label:"REFERENCE",value:memberCode}],
@@ -61,7 +68,7 @@ export function walletPassJson({memberCode,displayName,cardTheme="emerald",cardT
       backFields:[
         {key:"motto",label:"PERSONAL NOTE",value:String(cardMotto||"Not set").slice(0,80)},
         {key:"use",label:"ABOUT THIS PASS",value:"Private, non-transactional brand concept. Does not authenticate the holder, verify age or identity, grant venue entry, or authorize purchases."},
-        {key:"updates",label:"UPDATING",value:"Download the pass again after personalizing your card to replace this version."}
+        {key:"updates",label:"UPDATING",value:walletUpdate ? "Automatic Wallet updates are enabled for changes to your card design." : "Download the pass again after personalizing your card to replace this version."}
       ]
     }
   };
@@ -125,12 +132,12 @@ function decodePem(env,name) {
   return value;
 }
 
-export function signedWalletPass({memberCode,displayName,cardTheme,cardTitle,cardMotto,iconPng,env=process.env}) {
+export function signedWalletPass({memberCode,displayName,cardTheme,cardTitle,cardMotto,walletUpdate=null,iconPng,env=process.env}) {
   if(!walletConfigured(env)) throw new Error("Apple Wallet signing is not configured");
   if(!Buffer.isBuffer(iconPng) || iconPng.subarray(0,8).toString("hex")!=="89504e470d0a1a0a")
     throw new Error("Wallet pass requires the official PNG shield icon");
   const passJson=Buffer.from(JSON.stringify(walletPassJson({
-    memberCode,displayName,cardTheme,cardTitle,cardMotto,env
+    memberCode,displayName,cardTheme,cardTitle,cardMotto,walletUpdate,env
   })));
   const files={
     "pass.json":passJson,

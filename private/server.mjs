@@ -8,6 +8,11 @@ import { createSecurity } from "./security.mjs";
 import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
 import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
 import { walletConfigured, signedWalletPass, PASS_MIME } from "./wallet-pass.mjs";
+import {
+  installWalletUpdateSchema,createWalletUpdateService,walletUpdatesConfigured,
+  walletServiceURL,passAuthenticationToken,recordWalletRevision,
+  revokeWalletRegistrations,startWalletPushWorker
+} from "./wallet-updates.mjs";
 import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
@@ -63,6 +68,7 @@ export function openDb(dbPath) {
  db.exec("CREATE TABLE IF NOT EXISTS sessions (id_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf TEXT NOT NULL, expires_at INTEGER NOT NULL);");
  db.exec("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'), created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
+ installWalletUpdateSchema(db);
  return db;
 }
 function listProducts(db) {
@@ -105,18 +111,35 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
  const db = openDb(dbPath);
  const security = createSecurity({db,dbPath,origin:publicOrigin,mailSender,respond,redirect,formBody,layout,csrfField});
  const inventory = createInventory({db,dbPath,respond,redirect,formBody,layout});
+ const signedPassFor=(member)=>{
+   const memberCode=ensureMemberCode(db,member.id);
+   const walletUpdate=(member.wallet_updates_enabled===1 && walletUpdatesConfigured()) ? {
+     webServiceURL:walletServiceURL(),
+     authenticationToken:passAuthenticationToken(memberCode)
+   } : null;
+   return signedWalletPass({
+     memberCode,displayName:friendlyName(member),
+     cardTheme:member.card_theme,cardTitle:member.card_title,cardMotto:member.card_motto,
+     walletUpdate,iconPng:fs.readFileSync(path.join(root,"assets/shield-favicon.png"))
+   });
+ };
+ const walletService=createWalletUpdateService({db,respond,buildPass:signedPassFor});
+ const stopWalletWorker=startWalletPushWorker(db);
  installLockerFiles(db);
  const server = http.createServer(async (req,res) => {
   try {
    const url = queryString(req.url);
    const pathname = url.pathname;
    const method = req.method;
+   // PassKit callbacks do not carry browser cookies. Validate the ApplePass
+   // per-pass HMAC before any session-based routing.
+   if (await walletService.handle({req,res,url,method})) return;
    if (method === "GET" && pathname === "/logo") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/favicon.ico") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
    const token = cookies(req).tgl_session;
-   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.card_theme,u.card_title,u.card_motto,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
+   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.card_theme,u.card_title,u.card_motto,u.wallet_updates_enabled,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
    const user = session && session.expires_at > now() ? session : null;
    if (method === "GET" && pathname === "/login") return user ? redirect(res,user.role === "admin" ? "/admin" : "/member") : respond(res,200,authPage(false));
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
@@ -159,7 +182,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/member") {
      const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
      const memberCode = ensureMemberCode(db,user.id);
-     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,walletReady:walletConfigured(),saved:url.searchParams.get("saved")==="1",cardSaved:url.searchParams.get("card_saved")==="1"}));
+     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,walletReady:walletConfigured(),updatesReady:walletUpdatesConfigured(),updatesSaved:url.searchParams.get("updates_saved")==="1",saved:url.searchParams.get("saved")==="1",cardSaved:url.searchParams.get("card_saved")==="1"}));
    }
    if (method === "GET" && pathname === "/member/card.svg") {
      const memberCode = ensureMemberCode(db,user.id);
@@ -175,14 +198,8 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      if (!walletConfigured()) return respond(res,503,
        "Apple Wallet signing is not yet configured. Download the SVG preview instead.",
        "text/plain; charset=utf-8");
-     const memberCode = ensureMemberCode(db,user.id);
-     const iconPng=fs.readFileSync(path.join(root,"assets/shield-favicon.png"));
      try {
-       const pass=signedWalletPass({
-         memberCode,displayName:friendlyName(user),
-         cardTheme:user.card_theme,cardTitle:user.card_title,cardMotto:user.card_motto,
-         iconPng
-       });
+       const pass=signedPassFor(user);
        return respond(res,200,pass,PASS_MIME,{
          "Content-Disposition":'attachment; filename="the-green-locker-member.pkpass"',
          "X-Content-Type-Options":"nosniff"
@@ -192,6 +209,26 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        console.error("Wallet pass signing failed:",error?.name||"SigningError");
        return respond(res,503,"The signed Wallet pass could not be issued.","text/plain; charset=utf-8");
      }
+   }
+   if (method === "POST" && pathname === "/member/wallet/updates") {
+     const params=await formBody(req);
+     if(!safeCompare(bodyValue(params,"csrf"),user.csrf))
+       return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+     const requested=params.has("wallet_updates_enabled");
+     if(requested && !walletUpdatesConfigured())
+       return respond(res,503,"Apple Wallet updates are not configured","text/plain; charset=utf-8");
+     db.exec("BEGIN IMMEDIATE");
+     try{
+       const before=db.prepare("SELECT wallet_updates_enabled FROM users WHERE id=?").get(user.id);
+       db.prepare("UPDATE users SET wallet_updates_enabled=? WHERE id=?").run(requested?1:0,user.id);
+       if(requested && before?.wallet_updates_enabled!==1)recordWalletRevision(db,user.id);
+       if(!requested)revokeWalletRegistrations(db,user.id);
+       db.exec("COMMIT");
+     }catch{
+       db.exec("ROLLBACK");
+       return respond(res,503,"Wallet preferences unavailable","text/plain; charset=utf-8");
+     }
+     return redirect(res,"/member?updates_saved=1#member-card");
    }
    if (method === "POST" && pathname === "/member/card/preferences") {
      const params=await formBody(req);
@@ -204,8 +241,18 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
         !["Private Member","Vault Explorer","The Collector"].includes(cardTitle) ||
         [...cardMotto].length>70 || /[<>\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(cardMotto))
        return respond(res,400,"Invalid card personalization","text/plain; charset=utf-8");
-     db.prepare("UPDATE users SET card_theme=?,card_title=?,card_motto=? WHERE id=?")
-       .run(cardTheme,cardTitle,cardMotto,user.id);
+     db.exec("BEGIN IMMEDIATE");
+     try{
+       const old=db.prepare("SELECT card_theme,card_title,card_motto FROM users WHERE id=?").get(user.id);
+       const changed=old.card_theme!==cardTheme || old.card_title!==cardTitle || old.card_motto!==cardMotto;
+       db.prepare("UPDATE users SET card_theme=?,card_title=?,card_motto=? WHERE id=?")
+         .run(cardTheme,cardTitle,cardMotto,user.id);
+       if(changed)recordWalletRevision(db,user.id);
+       db.exec("COMMIT");
+     }catch{
+       db.exec("ROLLBACK");
+       return respond(res,503,"Card design unavailable","text/plain; charset=utf-8");
+     }
      return redirect(res,"/member?card_saved=1#member-card");
    }
    if (method === "POST" && pathname === "/member/profile") {
@@ -213,7 +260,16 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      if (!safeCompare(bodyValue(params,"csrf"),user.csrf)) return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
      const displayName = normalizeDisplayName(params.get("display_name"));
      if (!validDisplayName(displayName)) return respond(res,400,"Invalid display name","text/plain; charset=utf-8");
-     db.prepare("UPDATE users SET display_name=? WHERE id=?").run(displayName||null,user.id);
+     db.exec("BEGIN IMMEDIATE");
+     try{
+       const prev=db.prepare("SELECT display_name FROM users WHERE id=?").get(user.id);
+       db.prepare("UPDATE users SET display_name=? WHERE id=?").run(displayName||null,user.id);
+       if((prev.display_name||"")!==displayName)recordWalletRevision(db,user.id);
+       db.exec("COMMIT");
+     }catch{
+       db.exec("ROLLBACK");
+       return respond(res,503,"Member name unavailable","text/plain; charset=utf-8");
+     }
      return redirect(res,"/member?saved=1");
    }
    if (method === "GET" && pathname === "/") {
@@ -280,7 +336,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    return !res.headersSent && respond(res,500,"An internal error occurred","text/plain; charset=utf-8");
   }
  });
- return { server, db };
+ return { server, db, stopWalletWorker };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
  const { server } = createApp();

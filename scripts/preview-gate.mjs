@@ -4,6 +4,7 @@
  * This is NOT a substitute for production identity or rate-limiting controls.
  */
 import { createHash, timingSafeEqual } from "node:crypto";
+import { walletUpdatesConfigured, walletWebServicePath } from "../private/wallet-updates.mjs";
 const sha=value=>createHash("sha256").update(value,"utf8").digest();
 const equal=(a,b)=>timingSafeEqual(sha(a),sha(b));
 const failures=new Map();
@@ -28,6 +29,14 @@ export function enforcePreviewGate(server) {
     if(req.url?.split("?")[0]==="/healthz"){
       res.writeHead(200,{"Content-Type":"text/plain; charset=utf-8",...securityHeaders});
       res.end("ok"); return;
+    }
+    // Apple Wallet cannot present the interactive Basic-auth challenge.
+    // Only the PassKit v1 callback paths bypass the preview gate, AND ONLY
+    // after the complete Apple signing/update configuration is activated.
+    // The application separately authenticates pass-specific callbacks.
+    if (walletUpdatesConfigured() && walletWebServicePath(req.url?.split("?")[0]||"")) {
+      for(const listener of previous)listener.call(server,req,res);
+      return;
     }
     const key=req.socket.remoteAddress || "unknown",now=Date.now();
     const item=failures.get(key);
