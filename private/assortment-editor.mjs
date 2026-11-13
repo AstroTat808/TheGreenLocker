@@ -16,7 +16,7 @@ const escapeHtml=x=>String(x??"").replace(/[&<>"']/g,ch=>({
 const slotCatalog=Object.freeze(Object.entries(CONCEPT_COLLECTIONS).flatMap(([family,slots])=>
  slots.map((s,i)=>Object.freeze({id:s.id,family,sort:i+1,defaultTitle:s.title,
    defaultDescription:s.note||"Identity, ingredient and compliance information pending.",
-   initialVisible:family!=="botanicals"||i<2}))));
+   initialVisible:true}))));
 const slotMap=new Map(slotCatalog.map(x=>[x.id,x]));
 const limits={title:90,description:420,notes:1000,brand:90};
 const allowed=mime=>mime==="image/webp";
@@ -126,6 +126,18 @@ function webpDimensions(buffer){
   width=(bits&0x3fff)+1;height=((bits>>>14)&0x3fff)+1;
  }else return null;
  if(!width||!height||width>2400||height>2400||width*height>4000000)return null;
+ // Scan all chunks server-side: a manually crafted upload must not
+ // smuggle EXIF location data, XMP, ICC, animation or unknown metadata.
+ let cursor=12,seenImage=false;
+ while(cursor+8<=buffer.length){
+  const type=buffer.toString("ascii",cursor,cursor+4),size=buffer.readUInt32LE(cursor+4);
+  if(size>maxImageBytes||cursor+8+size>buffer.length)return null;
+  if(!["VP8X","VP8 ","VP8L","ALPH"].includes(type))return null;
+  if(type==="VP8X" && (buffer[cursor+8]&0x3e)!==0)return null;
+  if(type==="VP8 "||type==="VP8L")seenImage=true;
+  cursor+=8+size+(size%2);
+ }
+ if(cursor!==buffer.length||!seenImage)return null;
  return {width,height};
 }
 async function bodyBytes(req){
