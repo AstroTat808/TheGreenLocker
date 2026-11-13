@@ -14,7 +14,7 @@
   const skip = portal.querySelector(".locker-entry-skip");
   const heading = document.querySelector(".private-title h1, .member-hero h1");
   const background = [...document.querySelectorAll(
-    ".private-header,.private-notice,.private-title,.catalog-grid,.member-dashboard,.private-footer"
+    ".private-header,.private-notice,.private-title,.collection-preview,.collection-archive,.catalog-grid,.member-dashboard,.private-footer"
   )];
   const profileInputs = [...document.querySelectorAll("[data-vault-profile]")];
   const audition = document.querySelector("[data-vault-audition]");
