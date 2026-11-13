@@ -36,7 +36,10 @@ async function register(page,email) {
  const records=fs.readFileSync(outbox,"utf8").trim().split("\n").filter(Boolean).map(line=>JSON.parse(line));
  const verificationURL=new URL(records.filter(item=>item.to===email&&item.subject.includes("Verify")).at(-1).text.match(/https?:\/\/[^\s]+/)[0]);
  await page.goto(verificationURL.pathname+verificationURL.search);
+ const verificationResponse=page.waitForResponse(r=>r.request().method()==="POST"&&new URL(r.url()).pathname==="/verify-email");
  await page.getByRole("button",{name:"Confirm email address"}).click();
+ const verificationResult=await verificationResponse;
+ expect(verificationResult.status(),(await verificationResult.text()).slice(0,350)).toBe(200);
  await expect(page.getByRole("heading",{name:"Email verified"})).toBeVisible();
  await page.goto("/login");
 }
