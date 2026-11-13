@@ -69,6 +69,8 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
    const secureLogin=await post("/login",{email:"member@example.com",password:"correct-long-password-123"});
    assert.equal(secureLogin.status,303);
    assert.match(secureLogin.headers.get("set-cookie"),/(?:^|; )Secure(?:;|$)/);
+   assert.equal(secureLogin.headers.get("strict-transport-security"),"max-age=31536000");
+   assert.equal(secureLogin.headers.get("x-robots-tag"),"noindex, nofollow");
  } finally {
    if(oldCloud===undefined)delete process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW;
    else process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW=oldCloud;
@@ -127,8 +129,15 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(db.prepare("SELECT codename FROM products WHERE id=?").get(id).codename,"Eclipse");
  response=await req("/catalog",{headers:{Cookie:cookie}});
  assert.match(await response.text(),/Eclipse/);
- response=await post("/logout",{csrf},cookie);
- assert.equal(response.status,303);
+ process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW="1";
+ try {
+   response=await post("/logout",{csrf},cookie);
+   assert.equal(response.status,303);
+   assert.match(response.headers.get("set-cookie"),/(?:^|; )Secure(?:;|$)/);
+ } finally {
+   if(oldCloud===undefined)delete process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW;
+   else process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW=oldCloud;
+ }
  response=await req("/",{headers:{Cookie:cookie}});
  assert.equal(response.status,303,"Logout must revoke the session.");
 });
