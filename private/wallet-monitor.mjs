@@ -196,7 +196,7 @@ export function renderWalletOperationsPage(snapshot,{layout,user,csrf}){
       '<h2 id="wallet-monitor-metrics-heading">Registrations and update delivery</h2>'+
       '<div class="wallet-monitor-metrics">'+badges([
         ["Registered devices",metrics.devices],["Active registrations",metrics.registrations],
-        ["Members with passes",metrics.membersWithPasses],["Members opted in",metrics.optedIn],
+        ["Registered members",metrics.membersWithPasses],["Members opted in",metrics.optedIn],
         ["Queued updates",metrics.queued],["Pending retries",metrics.retries],
         ["APNs accepted",metrics.accepted],["Terminal failures",metrics.failed]
       ])+'</div>'+
@@ -204,7 +204,7 @@ export function renderWalletOperationsPage(snapshot,{layout,user,csrf}){
     '</section>'+
     '<section class="wallet-monitor-section" aria-labelledby="wallet-monitor-certs-heading">'+
       '<h2 id="wallet-monitor-certs-heading">Signing certificate watch</h2>'+
-      '<p class="wallet-monitor-hint">Read-only validity checks. Expiry warnings activate at 30, 14, and 7 days before expiration, then at expiry.</p>'+
+      '<p class="wallet-monitor-hint">Read-only X.509 validity checks. Warning at 30 days, critical at 7 days; optional email milestones at 30, 14, and 7 days.</p>'+
       '<div class="wallet-monitor-certificates">'+certMarkup+'</div>'+
     '</section>'+
     '<div class="wallet-monitor-tables">'+
