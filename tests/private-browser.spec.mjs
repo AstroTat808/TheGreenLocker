@@ -387,6 +387,7 @@ test("administrator can manage draft products and stock without sales actions",a
  await brandForm.locator('input[name="brand"]').fill("Night Vault Editions");
  await brandForm.getByRole("button",{name:"Save brand identity"}).click();
  await expect(page.getByText("Brand name saved",{exact:true})).toBeVisible();
+ await page.locator("#edit-botanical-01 summary").click(); // Refresh closes details; reopen before clicking upload.
  const imageForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
  await imageForm.locator('input[type="file"]').setInputFiles({
    name:"preview.png",mimeType:"image/png",
