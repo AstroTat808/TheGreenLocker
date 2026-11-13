@@ -8,6 +8,7 @@
   const replay = document.getElementById("locker-entry-replay");
   const skip = portal?.querySelector(".locker-entry-skip");
   const heading = document.querySelector(".private-title h1");
+  const background = [...document.querySelectorAll(".private-header,.private-notice,.private-title,.catalog-grid,.private-footer")];
   if (!portal || !replay || !skip) return;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -30,6 +31,7 @@
     if (timeout !== null) clearTimeout(timeout);
     timeout = null;
     portal.classList.remove("is-opening");
+    for (const element of background) element.inert = false;
     const wasFocused = document.activeElement === skip;
     if (wasFocused) skip.blur();
     portal.hidden = true;
@@ -51,6 +53,7 @@
     portal.classList.remove("is-opening");
     void portal.offsetWidth;
     portal.classList.add("is-opening");
+    for (const element of background) element.inert = true;
     skip.focus({ preventScroll: true });
     timeout = window.setTimeout(finish, durationMs);
   };
