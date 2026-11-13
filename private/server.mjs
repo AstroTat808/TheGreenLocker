@@ -95,10 +95,14 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/login") return user ? redirect(res,"/") : respond(res,200,authPage(false));
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
    if (["POST","PUT","PATCH","DELETE"].includes(method) && req.headers.origin) {
-     const host = req.headers.host;
-     let originHost;
-     try { originHost = new URL(req.headers.origin).host; } catch { return respond(res,403,"Invalid request origin","text/plain; charset=utf-8"); }
-     if (originHost !== host) return respond(res,403,"Origin mismatch","text/plain; charset=utf-8");
+     // Token confirmation forms intentionally use no-referrer, which can produce Origin: null.
+     // Restrict this exception to one-use, high-entropy token-consuming endpoints only.
+     const tokenConfirmation = method === "POST" && (pathname === "/verify-email" || pathname === "/reset-password");
+     if (!(req.headers.origin === "null" && tokenConfirmation)) {
+       let originHost;
+       try { originHost = new URL(req.headers.origin).host; } catch { return respond(res,403,"Invalid request origin","text/plain; charset=utf-8"); }
+       if (originHost !== req.headers.host) return respond(res,403,"Origin mismatch","text/plain; charset=utf-8");
+     }
    }
    if (await security.publicRoutes({req,res,url,pathname,method})) return;
    if (method === "POST" && (pathname === "/login" || pathname === "/register")) {
