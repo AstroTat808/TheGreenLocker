@@ -177,8 +177,8 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
               '<fieldset><legend>PERSONALIZE YOUR CARD</legend>' +
                 '<label for="member-card-theme">Card finish</label>' +
                 '<select id="member-card-theme" name="card_theme" required>' + themes + '</select>' +
-                '<label for="member-card-title">Card edition</label>' +
-                '<select id="member-card-title" name="card_title" required>' + titles + '</select>' +
+                '<label for="member-card-edition-select">Card edition</label>' +
+                '<select id="member-card-edition-select" name="card_title" required>' + titles + '</select>' +
                 '<label for="member-card-motto">Personal motto (optional)</label>' +
                 '<input id="member-card-motto" type="text" name="card_motto" maxlength="70" placeholder="Your space. Your story." value="' + cardMotto + '">' +
               '</fieldset>' +
