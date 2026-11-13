@@ -65,6 +65,8 @@ jobs:
       name: greenlocker-staging
       url: https://staging.thegreenlocker.com
     env:
+      EXPECTED_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      GH_TOKEN: ${{ github.token }}
       TGL_STAGING_SSH_HOST: ${{ secrets.TGL_STAGING_SSH_HOST }}
       TGL_STAGING_SSH_USER: ${{ secrets.TGL_STAGING_SSH_USER }}
       TGL_STAGING_SSH_KEY: ${{ secrets.TGL_STAGING_SSH_KEY }}
@@ -90,7 +92,10 @@ jobs:
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           [[ "$ACTUAL_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-          [[ "$ACTUAL_SHA" == "$GITHUB_SHA" ]] || { echo "::error::Merge SHA mismatch"; exit 1; }
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "::error::Exact merged SHA does not match release event"; exit 1; }
+          # Do not deploy a superseded approval if this branch advanced during QA.
+          CURRENT_HEAD="$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/branches/feat/security-inventory-staging" | jq -r '.commit.sha')"
+          [[ "$CURRENT_HEAD" == "$EXPECTED_SHA" ]] || { echo "::error::Branch advanced after this approval; stale release blocked"; exit 1; }
       - name: Transfer exact commit over SSH with pinned host identity
         shell: bash
         run: |
@@ -103,8 +108,8 @@ jobs:
           git archive --format=tar.gz -o "$RUNNER_TEMP/greenlocker-release.tgz" HEAD
           SSH_OPTS=(-i "$RUNNER_TEMP/tgl-ssh/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/tgl-ssh/known_hosts" -o BatchMode=yes)
           REMOTE="${TGL_STAGING_SSH_USER}@${TGL_STAGING_SSH_HOST}"
-          scp "${SSH_OPTS[@]}" "$RUNNER_TEMP/greenlocker-release.tgz" "$REMOTE:/tmp/greenlocker-release-${GITHUB_SHA}.tgz"
-          ssh "${SSH_OPTS[@]}" "$REMOTE" "bash -se -- '$GITHUB_SHA'" <<'REMOTE_DEPLOY'
+          scp "${SSH_OPTS[@]}" "$RUNNER_TEMP/greenlocker-release.tgz" "$REMOTE:/tmp/greenlocker-release-${EXPECTED_SHA}.tgz"
+          ssh "${SSH_OPTS[@]}" "$REMOTE" "bash -se -- '$EXPECTED_SHA'" <<'REMOTE_DEPLOY'
           set -euo pipefail
           sha="$1"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
