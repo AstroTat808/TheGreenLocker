@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomBytes, scryptSync } from "node:crypto";
 import { createApp } from "../private/server.mjs";
+import { enforcePreviewGate } from "./preview-gate.mjs";
 
 if (process.env.NODE_ENV === "production" || ["staging","production"].includes(process.env.TGL_ENV)) {
   throw new Error("Workshop preview fixtures are development-only; staging and production are blocked.");
@@ -29,9 +30,9 @@ if (fs.existsSync(credentialsPath)) {
     inviteCode:randomSecret(),
     mfaKey:randomBytes(32).toString("base64"),
     memberEmail:"preview-member@example.test",
-    memberPassword:randomSecret(),
+    memberPassword:process.env.TGL_PREVIEW_MEMBER_PASSWORD || randomSecret(),
     adminEmail:"preview-admin@example.test",
-    adminPassword:randomSecret()
+    adminPassword:process.env.TGL_PREVIEW_ADMIN_PASSWORD || randomSecret()
   };
   fs.writeFileSync(credentialsPath,JSON.stringify(fixture,null,2)+"\n",{flag:"wx",mode:0o600});
 }
@@ -44,6 +45,7 @@ process.env.TGL_DB_PATH=path.join(dir,"preview.sqlite");
 process.env.TGL_OUTBOX_PATH=path.join(dir,"email-outbox.ndjson");
 const origin=process.env.WORKSHOP_PREVIEW_ORIGIN || ("http://127.0.0.1:"+port);
 const {server,db}=createApp({inviteCode:fixture.inviteCode,dbPath:process.env.TGL_DB_PATH,publicOrigin:origin});
+if(host === "0.0.0.0")enforcePreviewGate(server);
 
 function seedUser(email,password,role) {
  const existing=db.prepare("SELECT id FROM users WHERE email=?").get(email);
@@ -83,10 +85,16 @@ server.listen(port,host,()=>{
  console.log("\nTHE GREEN LOCKER — PRIVATE WORKSHOP PREVIEW");
  console.log("App server: http://127.0.0.1:"+port);
  console.log("Open port "+port+" in the Workshop preview pane.");
- console.log("Member: "+fixture.memberEmail+" / "+fixture.memberPassword);
- console.log("Admin:  "+fixture.adminEmail+" / "+fixture.adminPassword);
- console.log("Admin account requires authenticator MFA setup on first login.");
- console.log("New-account invitation code: "+fixture.inviteCode);
+ if(process.env.TGL_PREVIEW_SHOW_CREDENTIALS === "1" && host === "127.0.0.1") {
+   console.log("Member: "+fixture.memberEmail+" / "+fixture.memberPassword);
+   console.log("Admin: "+fixture.adminEmail+" / "+fixture.adminPassword);
+   console.log("New-account invitation code: "+fixture.inviteCode);
+ }else{
+   console.log("Demo member email: "+fixture.memberEmail);
+   console.log("Demo admin email: "+fixture.adminEmail);
+   console.log("Credentials are not printed in cloud logs.");
+ }
+ console.log("Admin MFA enrollment is required.");
  console.log("Development email outbox: "+process.env.TGL_OUTBOX_PATH);
  console.log("DO NOT PUBLISH THIS DEV SERVER OR ENABLE SALES.");
  console.log("Credentials and sample data are stored in a gitignored local directory.\n");
