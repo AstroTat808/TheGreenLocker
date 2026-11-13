@@ -302,6 +302,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page).toHaveURL(/\/login$/);
 });
 test("administrator can manage draft products and stock without sales actions",async({page})=>{
+ test.slow(); // Authenticated admin Wallet QA includes three responsive captures.
  const email=emailFor();
  await register(page,email);
  await login(page,email);
@@ -318,6 +319,34 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.locator(".private-logo img")).toHaveAttribute("src","/logo");
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
+ await expect(page.getByRole("link",{name:/Wallet Operations/})).toBeVisible();
+ await page.getByRole("link",{name:/Wallet Operations/}).click();
+ await expect(page).toHaveURL(/\/admin\/wallet$/);
+ await expect(page.getByRole("heading",{name:"Wallet Operations."})).toBeVisible();
+ await expect(page.getByRole("heading",{name:"Operational alerts"})).toBeVisible();
+ await expect(page.getByText("Apple Wallet signing is not configured.",{exact:false})).toBeVisible();
+ await expect(page.getByText("No Wallet device registrations yet.")).toBeVisible();
+ await expect(page.getByText(/APNs accepted/)).toBeVisible();
+ await expect(page.locator(".wallet-monitor-metric")).toHaveCount(8);
+ await expect(page.locator(".wallet-cert-row")).toHaveCount(2);
+ await assertNoOverflow(page);
+ if (test.info().project.name==="private-mobile-webkit") {
+   const beforeViewport=page.viewportSize();
+   const dir=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(dir,{recursive:true});
+   for(const width of [320,375,430]) {
+     await page.setViewportSize({width,height:790});
+     await assertNoOverflow(page);
+     await page.screenshot({
+       path:path.join(dir,width+"-wallet-operations.png"),fullPage:true,animations:"disabled"
+     });
+     const navHeight=await page.locator(".wallet-monitor-return").evaluate(el=>el.getBoundingClientRect().height);
+     expect(navHeight).toBeGreaterThanOrEqual(44);
+   }
+   await page.setViewportSize(beforeViewport);
+ }
+ await page.getByRole("link",{name:"Return to operations dashboard"}).click();
+ await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  const sku="SAMPLE-"+randomBytes(3).toString("hex").toUpperCase();
  const productName="Sample accessory "+sku;
  const createForm=page.locator('form[action="/admin/products"]');
