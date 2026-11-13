@@ -73,7 +73,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.ok(csrf);
  response=await post("/admin/products",{csrf:"wrong",sku:"DEMO-1",name:"Development Item",category:"Lifestyle"},cookie);
  assert.equal(response.status,403);
- response=await post("/admin/products",{csrf,sku:"DEMO-1",name:"Development Item",category:"Lifestyle"},cookie);
+ response=await post("/admin/products",{csrf,sku:"DEMO-1",name:"Development Item",category:"Lifestyle",codename:"Ghost Key"},cookie);
  assert.equal(response.status,303);
  const id=db.prepare("SELECT id FROM products WHERE sku=?").get("DEMO-1").id;
  response=await post("/admin/stock",{csrf,product_id:String(id),delta:"10",reason:"Internal stock test"},cookie);
@@ -82,7 +82,12 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(response.status,400);
  assert.equal(db.prepare("SELECT SUM(delta) total FROM movements WHERE product_id=?").get(id).total,10);
  response=await req("/catalog",{headers:{Cookie:cookie}});html=await response.text();
- assert.match(html,/Development Item/);assert.doesNotMatch(html,/buy now|checkout|purchase now/i);
+ assert.match(html,/Development Item/);assert.match(html,/Ghost Key/);assert.doesNotMatch(html,/buy now|checkout|purchase now/i);
+ response=await post("/admin/products/codename",{csrf,product_id:String(id),codename:"Eclipse"},cookie);
+ assert.equal(response.status,303);
+ assert.equal(db.prepare("SELECT codename FROM products WHERE id=?").get(id).codename,"Eclipse");
+ response=await req("/catalog",{headers:{Cookie:cookie}});
+ assert.match(await response.text(),/Eclipse/);
  response=await post("/logout",{csrf},cookie);
  assert.equal(response.status,303);
  response=await req("/",{headers:{Cookie:cookie}});
