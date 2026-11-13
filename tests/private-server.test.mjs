@@ -130,6 +130,18 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/member/wallet.pkpass",{headers:{Cookie:cookie}});
  assert.equal(response.status,503,"Never issue unsigned .pkpass files without Apple credentials.");
  assert.match(await response.text(),/signing is not yet configured/);
+ response=await post("/member/wallet/updates",
+   {csrf:"incorrect",wallet_updates_enabled:"1"},cookie);
+ assert.equal(response.status,403,"Member Wallet update preference needs session CSRF.");
+ response=await post("/member/wallet/updates",
+   {csrf:profileCsrf,wallet_updates_enabled:"1"},cookie);
+ assert.equal(response.status,503,"Auto updates cannot activate without signed pass and APNs configuration.");
+ assert.equal(db.prepare("SELECT wallet_updates_enabled FROM users WHERE email=?").get("member@example.com").wallet_updates_enabled,0);
+ response=await post("/member/wallet/updates",{csrf:profileCsrf},cookie);
+ assert.equal(response.status,303,"Opt out remains possible even when service is unavailable.");
+ assert.equal(response.headers.get("location"),"/member?updates_saved=1#member-card");
+ assert.equal(db.prepare("SELECT COUNT(*) count FROM wallet_registrations").get().count,0);
+
  response=await req("/member-card-ui.js");
  assert.equal(response.status,303,"Flip controller requires authentication.");
  response=await req("/member-card-ui.js",{headers:{Cookie:cookie}});
