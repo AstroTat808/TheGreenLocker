@@ -146,3 +146,74 @@ screenshot audit identified both faces being painted simultaneously by WebKit,
 producing mirrored/overlapping text. The CSS fix explicitly switches hidden
 faces at the midpoint of the 3D flip; reduced-motion bypasses transitions.
 QA artifacts are attached to the PR's `Protected member browser QA` run.
+
+
+## Wallet Operations dashboard and certificate alerts
+
+**URL:** `/admin/wallet` — authenticated administrators only. Existing admin
+MFA must be completed before the dashboard can be viewed. Ordinary members
+receive HTTP 403. The page is server-rendered and read-only.
+
+The dashboard displays:
+- Active Wallet device and per-pass registration counts.
+- Members explicitly opted in to Wallet updates, plus registered-member count.
+- Queued, retrying, APNs-accepted and permanently failed update jobs.
+- A masked, recent registration list and a redacted history of update jobs.
+- X.509 expiration dates and severity for the Pass Type signing certificate
+  and WWDR chain. The signing key's match is checked without revealing it.
+- A warning if Apple Wallet signing credentials are absent, malformed or
+  close to expiration. The monitoring page remains useful when Wallet
+  issuance is disabled.
+
+**APNs accepted is NOT confirmation of installation on a physical iPhone.**
+This distinction is displayed explicitly. No private keys, push tokens,
+full device identifiers, auth tokens or member email addresses are rendered.
+
+### Alert thresholds
+
+For each installed certificate, the dashboard reports:
+- More than 30 days remaining: healthy.
+- 30 days or fewer: warning.
+- 7 days or fewer: critical.
+- Expired: expired.
+- Invalid or missing certificate: configuration warning.
+
+When email alerts are explicitly enabled, milestone notifications are sent
+once per certificate and expiry at 30, 14 and 7 days remaining, and on
+expiration. The monitor records SHA-256 identifiers of alert events in
+SQLite to prevent duplicate notices after restarts. It checks at startup
+and at six-hour intervals while the staging service is running.
+
+### Optional certificate-alert email configuration
+
+Keep the following variables disabled/absent until a verified Resend
+sender and destination mailbox are ready:
+
+| Variable | Purpose |
+|---|---|
+| `TGL_WALLET_ALERTS_ENABLED` | Set to `1` to activate recurring email checks |
+| `TGL_WALLET_ALERT_EMAIL` | Operations recipient mailbox |
+| `TGL_MAIL_MODE` | Not required for Wallet certificate alerts; the private workshop may keep its local account-email outbox. |
+| `TGL_RESEND_API_KEY` | Existing private transactional mail credential |
+| `TGL_EMAIL_FROM` | Verified transactional sender |
+
+Use Railway sealed variables for secrets; no credentials should appear
+in browser markup, GitHub Actions outputs or chat messages.
+
+Certificate-alert emails use the verified Resend sender separately and only when explicitly enabled. The workshop's development account-email outbox remains unchanged.
+
+The certificate watcher cannot operate while the app is shut down; a
+separate external scheduled health monitor can be added later for alerts
+during outages. Do not interpret dashboard **zero registrations** as
+evidence that iPhone passes were issued successfully: the Apple signer is
+currently unconfigured in this private staging environment.
+
+### Test and deployment gates
+
+The automated suite checks certificate parsing, countdowns, mismatched
+private keys, missing credentials, admin authorization/MFA,
+no-secrets-rendered HTML, registration/retry metrics, email deduplication
+and retry, and responsive screenshots at 320px, 375px, and 430px. Keep
+`TGL_WALLET_ALERTS_ENABLED` unset until official Apple certificates and
+Resend delivery are provisioned and a physical iPhone Wallet install
+has been independently verified.

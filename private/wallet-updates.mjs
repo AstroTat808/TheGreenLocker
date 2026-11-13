@@ -206,8 +206,8 @@ export function createWalletUpdateService({db,respond,buildPass,env=process.env}
         db.prepare("INSERT INTO wallet_devices(device_id,push_token,updated_at) VALUES(?,?,?) "+
           "ON CONFLICT(device_id) DO UPDATE SET push_token=excluded.push_token,updated_at=excluded.updated_at")
           .run(device,data.pushToken,at);
-        db.prepare("INSERT OR IGNORE INTO wallet_registrations(device_id,user_id) VALUES(?,?)")
-          .run(device,member.id);
+        db.prepare("INSERT OR IGNORE INTO wallet_registrations(device_id,user_id,registered_at) VALUES(?,?,?)")
+          .run(device,member.id,at);
         db.exec("COMMIT");
         plain(res,registered?200:201);
       }catch(err){db.exec("ROLLBACK");plain(res,503,"Registration unavailable");}
@@ -290,7 +290,7 @@ export async function processWalletPushQueue(db,{
     try{result=await send(job.push_token,{env});}
     catch{result={status:503,reason:"transport"};}
     if(result.status>=200&&result.status<300){
-      db.prepare("UPDATE wallet_push_jobs SET state='sent',attempts=attempts+1 WHERE id=?").run(job.id);
+      db.prepare("UPDATE wallet_push_jobs SET state='sent',attempts=attempts+1,sent_at=?,last_attempt_at=? WHERE id=?").run(at,at,job.id);
       ok++;
     }else if([400,404,410].includes(result.status) &&
              ["BadDeviceToken","DeviceTokenNotForTopic","Unregistered"].includes(result.reason)){
@@ -304,8 +304,8 @@ export async function processWalletPushQueue(db,{
       const attempts=job.attempts+1;
       const state=attempts>=5?"failed":"pending";
       const retryAt=at+Math.min(3600000,15000*2**attempts);
-      db.prepare("UPDATE wallet_push_jobs SET state=?,attempts=?,next_attempt_at=? WHERE id=?")
-        .run(state,attempts,retryAt,job.id);
+      db.prepare("UPDATE wallet_push_jobs SET state=?,attempts=?,next_attempt_at=?,last_attempt_at=? WHERE id=?")
+        .run(state,attempts,retryAt,at,job.id);
       failed++;
     }
   }
