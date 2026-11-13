@@ -6,8 +6,10 @@ ENV NODE_ENV=development \
     TGL_WORKSHOP_DIR=/data \
     PORT=4174
 WORKDIR /app
+RUN apk add --no-cache su-exec
 COPY --chown=node:node . /app
-RUN mkdir -p /data && chown -R node:node /data
-USER node
+RUN mkdir -p /data && chown node:node /data
 EXPOSE 4174
-CMD ["node", "scripts/workshop-preview.mjs"]
+# Railway volumes are initially root-owned and hide image-time /data ownership.
+# Set mount permissions on startup, then permanently drop root privileges.
+CMD ["sh", "-c", "chown node:node /data && exec su-exec node node scripts/workshop-preview.mjs"]
