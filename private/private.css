@@ -61,3 +61,41 @@
   .locker-tier.is-unlocking .locker-vault-rotor,.locker-tier.is-unlocking .locker-vault-flare,.locker-tier.is-unlocking input:checked+.locker-tier-face{animation:none!important}
 }
 @media(max-width:360px){.locker-tier-face{min-height:158px}.locker-vault{width:57px;height:57px}.locker-vault-rotor{width:43px;height:43px}.locker-tier-face strong.locker-tier-name{font-size:9px}}
+
+
+/* Vault-entry sequence — cinematic opening on the first authenticated catalog visit. */
+.locker-entry-portal[hidden],.locker-entry-replay[hidden]{display:none!important}
+.locker-entry-portal{position:fixed;inset:0;z-index:1200;overflow:hidden;display:grid;place-items:center;isolation:isolate;background:#020b06;perspective:1000px;touch-action:none}
+.locker-entry-backdrop{position:absolute;inset:0;background:radial-gradient(ellipse at center,#1e4b2a 0%,#061c10 44%,#000603 90%);opacity:1}
+.locker-entry-door{position:absolute;top:-2%;bottom:-2%;width:53%;background:linear-gradient(90deg,#030b07 0%,#082012 20%,#174028 70%,#05140b 100%);box-shadow:inset 0 0 0 3px #ba935d,inset 0 0 0 10px #001b0b,inset 0 0 0 12px #6c5429,0 0 42px #000c;backface-visibility:hidden}
+.locker-entry-door::before{content:"";position:absolute;inset:8% 9%;border:1px solid #d9ac6180;box-shadow:inset 0 0 0 5px #072011,0 0 0 5px #06150c;background:repeating-linear-gradient(90deg,transparent 0 28px,#bd8d3910 29px 31px,transparent 32px 62px)}
+.locker-entry-door::after{content:"";position:absolute;top:42%;height:16%;width:40px;border:3px double #dbb777;border-radius:50%;background:radial-gradient(circle,#fcdea0 0%,#6b4e24 50%,#102313 82%);box-shadow:0 0 30px #e0bc7166}
+.locker-entry-door-left{left:-2%;border-right:6px double #d0a45c;transform-origin:left center}
+.locker-entry-door-right{right:-2%;border-left:6px double #d0a45c;transform-origin:right center;filter:brightness(.92)}
+.locker-entry-door-left::after{right:-18px}
+.locker-entry-door-right::after{left:-18px}
+.locker-entry-center{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:16px;pointer-events:none;filter:drop-shadow(0 0 28px #edc8813c)}
+.locker-entry-center img{width:min(25vw,148px);height:auto;aspect-ratio:1;object-fit:contain}
+.locker-entry-ring{position:absolute;top:50%;left:50%;width:clamp(180px,34vw,400px);height:clamp(180px,34vw,400px);border:2px solid #e0b86c99;border-radius:50%;transform:translate(-50%,-57%);box-shadow:inset 0 0 30px #dabb5222,0 0 33px #fac7713d}
+.locker-entry-ring::before,.locker-entry-ring::after{content:"";position:absolute;inset:10%;border:1px dashed #e5c888b3;border-radius:50%}
+.locker-entry-ring::after{inset:23%;border:2px solid #e4b96670}
+.locker-entry-caption{margin-top:15px;font:600 clamp(10px,1.7vw,17px)/1.5 Arial,sans-serif;letter-spacing:.26em;color:#f0d9a0;text-shadow:0 0 18px #ffda8488;text-align:center}
+.locker-entry-glow{position:absolute;inset:-40%;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(circle,#fff2be65 0%,#a8753319 26%,transparent 49%)}
+.locker-entry-skip{position:absolute;z-index:5;right:max(18px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));padding:12px 18px;border:1px solid #f4d6a7;border-radius:4px;color:#fff3d1;background:#0b261b;font:600 13px Arial,sans-serif;cursor:pointer}
+.locker-entry-skip:focus-visible,.locker-entry-replay:focus-visible{outline:3px solid #fff1c9;outline-offset:4px}
+.locker-entry-replay{margin-top:18px;padding:10px 17px;border:1px solid #d5b77b;color:#f7dfab;background:#0c281b;border-radius:5px;font:600 12px Arial,sans-serif;letter-spacing:.06em;cursor:pointer}
+.locker-entry-replay:hover{background:#264832}
+.locker-entry-portal.is-opening .locker-entry-center{animation:vault-entry-center 1900ms ease-in-out both}
+.locker-entry-portal.is-opening .locker-entry-ring{animation:vault-entry-spin 1900ms cubic-bezier(.2,.8,.3,1) both}
+.locker-entry-portal.is-opening .locker-entry-door-left{animation:vault-entry-left 1900ms cubic-bezier(.25,.72,.23,1) both}
+.locker-entry-portal.is-opening .locker-entry-door-right{animation:vault-entry-right 1900ms cubic-bezier(.25,.72,.23,1) both}
+.locker-entry-portal.is-opening .locker-entry-glow{animation:vault-entry-flash 1900ms ease-out both}
+.locker-entry-portal.is-opening .locker-entry-backdrop{animation:vault-entry-background 1900ms ease-out both}
+@keyframes vault-entry-spin{0%{transform:translate(-50%,-57%) rotate(0deg) scale(.8)}27%{transform:translate(-50%,-57%) rotate(130deg) scale(1)}52%{transform:translate(-50%,-57%) rotate(320deg) scale(1.12)}100%{transform:translate(-50%,-57%) rotate(600deg) scale(1.3)}}
+@keyframes vault-entry-center{0%,30%{opacity:1;transform:scale(.7)}55%{opacity:1;transform:scale(1.08)}76%{opacity:.9;transform:scale(1.17)}100%{opacity:0;transform:scale(1.3)}}
+@keyframes vault-entry-left{0%,39%{transform:translateX(0) rotateY(0)}75%{transform:translateX(-85%) rotateY(-36deg)}100%{transform:translateX(-112%) rotateY(-50deg)}}
+@keyframes vault-entry-right{0%,39%{transform:translateX(0) rotateY(0)}75%{transform:translateX(85%) rotateY(36deg)}100%{transform:translateX(112%) rotateY(50deg)}}
+@keyframes vault-entry-flash{0%,30%{opacity:0}55%{opacity:.8}78%{opacity:.25}100%{opacity:0}}
+@keyframes vault-entry-background{0%,55%{opacity:1}100%{opacity:0}}
+@media(max-width:540px){.locker-entry-center img{width:min(32vw,115px)}.locker-entry-ring{width:clamp(140px,56vw,280px);height:clamp(140px,56vw,280px)}.locker-entry-caption{font-size:10px;letter-spacing:.1em}.locker-entry-door{width:54%}.locker-entry-door::after{width:22px}.locker-entry-door-left::after{right:-13px}.locker-entry-door-right::after{left:-13px}}
+@media(prefers-reduced-motion:reduce){.locker-entry-portal,.locker-entry-portal *{animation:none!important;transition:none!important}.locker-entry-portal[hidden]{display:none!important}}
