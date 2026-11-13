@@ -51,9 +51,9 @@ export function renderMemberCardSvg({displayName,memberCode,logoBase64,cardTheme
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="The Green Locker private concept member card">',
     '<defs>',
-      '<linearGradient id="card-bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="\x27,theme.start,\x27"/><stop offset=".52" stop-color="\x27,theme.mid,\x27"/><stop offset="1" stop-color="\x27,theme.end,\x27"/></linearGradient>',
+      '<linearGradient id="card-bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="',theme.start,'"/><stop offset=".52" stop-color="',theme.mid,'"/><stop offset="1" stop-color="',theme.end,'"/></linearGradient>',
       '<linearGradient id="card-gold" x1="0" x2="1"><stop stop-color="#a98243"/><stop offset=".5" stop-color="#f4da9b"/><stop offset="1" stop-color="#a47b41"/></linearGradient>',
-      '<radialGradient id="card-halo"><stop stop-color="\x27,theme.halo,\x27" stop-opacity=".8"/><stop offset=".42" stop-color="#1f4930" stop-opacity=".24"/><stop offset="1" stop-color="#061a10" stop-opacity="0"/></radialGradient>',
+      '<radialGradient id="card-halo"><stop stop-color="',theme.halo,'" stop-opacity=".8"/><stop offset=".42" stop-color="#1f4930" stop-opacity=".24"/><stop offset="1" stop-color="#061a10" stop-opacity="0"/></radialGradient>',
       '<pattern id="card-grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="#d6b275" stroke-opacity=".065" stroke-width="1"/></pattern>',
     '</defs>',
     '<rect x="0" y="0" width="1200" height="720" rx="28" fill="url(#card-bg)"/>',
