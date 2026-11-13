@@ -14,12 +14,12 @@ The design uses the slots **Variety 01–04**, **Flavor 01–12**, and **Mushroo
 
 ### Legacy test data
 
-The existing twelve "Locker Files" botanical draft products are **not the planned real assortment**. They are preserved unchanged in an explicitly labeled internal-development-records section, below the three new collections. This avoids altering existing test inventory, SKU identities, member records, or administrator workflows. The four existing visible package concepts remain The Key (1/8 oz), The Signal (1/4 oz), The Cipher (1/2 oz), and The Vault (1 oz). The Archive (1/4 lb) stays administrator-only. These are design concepts, not guarantees of lawful quantity limits.
+The existing twelve "Locker Files" botanical draft products are **not the planned real assortment**. They are preserved unchanged in an explicitly labeled internal-development-records section on the `/catalog` route, below the three new collections. The curated `/shop` page excludes these legacy fixtures. This avoids altering existing test inventory, SKU identities, member records, or administrator workflows. The four existing visible package concepts remain The Key (1/8 oz), The Signal (1/4 oz), The Cipher (1/2 oz), and The Vault (1 oz). The Archive (1/4 lb) stays administrator-only. These are design concepts, not guarantees of lawful quantity limits.
 
 ## Shop preview
 
 - \`/catalog\` remains the private archive with a cinematic entrance.
-- \`/shop\` is a second private, read-only presentation route that displays the same three curated collections. It has no cart, checkout, credit-card entry, order submission, payment link, inventory allocation, delivery booking or address form.
+- \`/shop\` is a private, read-only presentation route for **only the three curated collections**, without legacy test-product records. It has no cart, checkout, credit-card entry, order submission, payment link, inventory allocation, delivery booking or address form.
 - Both routes require the existing private preview gate, account login and associated security policies.
 - Three anchored collection sections work without JavaScript.
 - Nine mobile screenshots at 320px, 375px, and 430px are captured by the authenticated WebKit browser test.
