@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 
 const clock = () => Date.now();
 const digest = value => createHash("sha256").update(String(value)).digest("hex");
