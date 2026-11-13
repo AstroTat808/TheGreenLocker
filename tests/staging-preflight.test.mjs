@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
@@ -34,4 +35,22 @@ test("staging preflight rejects production hosts, weak secrets and development m
   {NODE_ENV:"development"},
   {TGL_PUBLIC_ORIGIN:"http://staging.thegreenlocker.com"}
  ]){assert.notEqual(validate(patch).status,0,"An insecure staging configuration was accepted: "+Object.keys(patch).join(","));}
+});
+
+test("release workflow requires protected branch, explicit opt-in, approved merge and exact current SHA",()=>{
+  const workflow=fs.readFileSync(".github/workflows/approved-staging-release.yml","utf8");
+  assert.match(workflow,/pull_request:\s*\n\s*types:\s*\[closed\]/);
+  assert.match(workflow,/branches:\s*\n\s*- feat\/security-inventory-staging/);
+  assert.match(workflow,/github\.event\.pull_request\.merged == true/);
+  assert.match(workflow,/github\.ref_protected == true/);
+  assert.match(workflow,/vars\.TGL_STAGING_DEPLOY_ENABLED == 'true'/);
+  assert.match(workflow,/github\.event\.pull_request\.merge_commit_sha/);
+  assert.match(workflow,/CURRENT_HEAD.*git ls-remote/);
+  assert.match(workflow,/Superseded release blocked at transfer/);
+  assert.match(workflow,/environment:\s*\n\s*name: greenlocker-staging/);
+  assert.doesNotMatch(workflow,/^\s*push:\s*$/m,"A direct push must not trigger live deployment");
+  const compose=fs.readFileSync("compose.staging.yml","utf8");
+  assert.match(compose,/https-gateway:/);
+  assert.match(compose,/STAGING_BASIC_AUTH_HASH/);
+  assert.match(compose,/no-new-privileges:true/);
 });
