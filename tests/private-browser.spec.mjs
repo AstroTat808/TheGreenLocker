@@ -93,7 +93,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.locator("[data-vault-feedback-hint]")).toContainText("Previewing Cinematic");
  const hapticsAvailable=await haptics.isEnabled();
  if(hapticsAvailable) await haptics.check();
- else await expect(page.locator("[data-vault-feedback-hint]")).toContainText("not supported");
+ else await expect(page.locator("[data-vault-support]")).toContainText("not supported");
  await page.reload();
  await expect(cinematic).toBeChecked();
  if(hapticsAvailable) await expect(haptics).toBeChecked();
