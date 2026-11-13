@@ -28,6 +28,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  let response=await req("/");
  assert.equal(response.status,303);assert.equal(response.headers.get("location"),"/login");
  response=await req("/catalog");assert.equal(response.status,303);
+ response=await req("/shop");assert.equal(response.status,303,"Private concept shop is not public.");
  response=await req("/styles.css");assert.equal(response.status,303);
  response=await req("/assets/shield-logo.webp");assert.equal(response.status,303,"Private shield asset requires member login.");
  response=await req("/locker-motion.js");assert.equal(response.status,303,"Selector animation requires member login.");
@@ -227,6 +228,19 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.match(catalogMarkup,/Replay vault opening/);
  assert.match(catalogMarkup,/\/vault-entry\.js/);
  assert.doesNotMatch(catalogMarkup,/add to cart|checkout|purchase now/i);
+ assert.match(catalogMarkup,/THE COLLECTION <em>VAULT/);
+ assert.equal((catalogMarkup.match(/class="collection-concept-card collection-concept-botanical"/g)||[]).length,4);
+ assert.equal((catalogMarkup.match(/class="collection-flavor"/g)||[]).length,12);
+ assert.equal((catalogMarkup.match(/class="collection-concept-card collection-concept-treat"/g)||[]).length,2);
+ assert.match(catalogMarkup,/EXISTING INTERNAL DRAFT RECORDS/);
+ assert.match(catalogMarkup,/No purchases, payments, checkout/);
+ assert.doesNotMatch(catalogMarkup,/\$10 shipping anywhere|free nationwide shipping|\/checkout|\/cart/i);
+ response=await req("/shop",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ const shopMarkup=await response.text();
+ assert.match(shopMarkup,/collection-vape-feature/);
+ assert.match(shopMarkup,/Mushroom crispy treat/);
+ assert.doesNotMatch(shopMarkup,/<form[^>]+action="\/checkout"/i);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
  response=await req("/admin/wallet");assert.equal(response.status,303,"Anonymous Wallet dashboard requires login.");
