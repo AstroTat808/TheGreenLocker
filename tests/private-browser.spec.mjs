@@ -74,17 +74,53 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.getByRole("link",{name:"Browse without animation"})).toBeVisible();
  await expect(page.locator(".member-stat")).toHaveCount(3);
  await expect(page.getByText(/No prices, cart, purchases, reservations/i)).toBeVisible();
- const sound=page.getByRole("checkbox",{name:/Mechanical sound/});
+ const silent=page.getByRole("radio",{name:/^Silent/});
+ const classic=page.getByRole("radio",{name:/^Classic/});
+ const cinematic=page.getByRole("radio",{name:/^Cinematic/});
+ const preview=page.getByRole("button",{name:"Preview selected sound"});
  const haptics=page.getByRole("checkbox",{name:/Gentle haptics/});
- await expect(sound).not.toBeChecked();
+ await expect(page.locator("[data-vault-profile]")).toHaveCount(3);
+ await expect(silent).toBeChecked();
  await expect(haptics).not.toBeChecked();
- if(await sound.isEnabled()) await sound.check();
+ await preview.click();
+ await expect(page.locator("[data-vault-feedback-hint]")).toContainText("Silent mode");
+ await expect(classic).toBeEnabled();
+ await classic.check();
+ await preview.click();
+ await expect(page.locator("[data-vault-feedback-hint]")).toContainText("Previewing Classic");
+ await cinematic.check();
+ await preview.click();
+ await expect(page.locator("[data-vault-feedback-hint]")).toContainText("Previewing Cinematic");
  const hapticsAvailable=await haptics.isEnabled();
  if(hapticsAvailable) await haptics.check();
- else await expect(page.locator("[data-vault-feedback-hint]")).toContainText("not supported");
+ else await expect(page.locator("[data-vault-support]")).toContainText("not supported");
  await page.reload();
- if(await sound.isEnabled()) await expect(sound).toBeChecked();
+ await expect(cinematic).toBeChecked();
  if(hapticsAvailable) await expect(haptics).toBeChecked();
+ const preferences=await page.evaluate(()=>JSON.parse(localStorage.getItem("tgl:vault-feedback:v2")||"{}"));
+ expect(preferences.profile).toBe("cinematic");
+ await silent.check();
+ await page.reload();
+ await expect(silent).toBeChecked();
+ await expect(page.locator(".member-compartment")).toHaveCount(4);
+ const memberCode=await page.locator("[data-member-code]").textContent();
+ expect(memberCode).toMatch(/^GL-(?:[A-F0-9]{4}-){3}[A-F0-9]{4}$/);
+ await expect(page.locator("#member-card")).toContainText(memberCode);
+ const cardResponse=await page.request.get("/member/card.svg");
+ expect(cardResponse.status()).toBe(200);
+ expect(cardResponse.headers()["content-type"]).toMatch(/^image\/svg\+xml/);
+ expect(cardResponse.headers()["content-disposition"]).toContain("attachment");
+ const cardSvg=await cardResponse.text();
+ expect(cardSvg).toContain(memberCode);
+ expect(cardSvg).toContain("data:image/webp;base64,");
+ expect(cardSvg).not.toContain(email);
+ await page.locator('.member-compartment[href="#member-card"]').click();
+ await expect(page).toHaveURL(/#member-card$/);
+ await expect(page.locator("#member-card")).toBeFocused();
+ await page.locator('.member-compartment[href="#member-settings"]').click();
+ await expect(page).toHaveURL(/#member-settings$/);
+ await expect(page.locator("#member-settings")).toBeFocused();
+ await assertNoOverflow(page);
  await page.getByLabel("Display name").fill("Christopher");
  await page.getByRole("button",{name:"Save display name"}).click();
  await expect(page).toHaveURL(/\/member\?saved=1$/);
@@ -92,6 +128,10 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await page.reload();
  await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
  await expect(page.locator("#member-display-name")).toHaveValue("Christopher");
+ await expect(page.locator("[data-member-code]")).toHaveText(memberCode);
+ const renamedSvg=await (await page.request.get("/member/card.svg")).text();
+ expect(renamedSvg).toContain("Christopher");
+ expect(renamedSvg).toContain(memberCode);
  await assertNoOverflow(page);
  if(test.info().project.name==="private-mobile-webkit"){
    for(const width of [320,375,430]){
@@ -99,6 +139,9 @@ test("invited member can register, log in, and view concept-only catalog",async(
      await assertNoOverflow(page);
      const ctaHeight=await page.getByRole("link",{name:/Unlock the vault/}).evaluate(el=>el.getBoundingClientRect().height);
      expect(ctaHeight).toBeGreaterThanOrEqual(44);
+     await expect(page.locator(".member-compartment")).toHaveCount(4);
+     const cardWidth=await page.locator(".member-credential").evaluate(el=>el.getBoundingClientRect().width);
+     expect(cardWidth).toBeLessThanOrEqual(width);
    }
  }
  await page.getByRole("link",{name:"Concept catalog"}).click();
@@ -146,6 +189,11 @@ test("invited member can register, log in, and view concept-only catalog",async(
      expect(navHeight).toBeGreaterThanOrEqual(44);
    }
  }
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await page.goto("/member");
+ await page.locator('.member-compartment[href="#member-card"]').click();
+ await expect(page).toHaveURL(/#member-card$/);
+ await expect(page.locator(".member-compartment.is-opening")).toHaveCount(0);
  await page.emulateMedia({reducedMotion:"no-preference"});
  await page.goto("/member");
  await page.getByRole("link",{name:/Unlock the vault/}).click();

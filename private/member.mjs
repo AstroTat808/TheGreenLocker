@@ -19,7 +19,7 @@ export function validDisplayName(value) {
   );
 }
 
-function friendlyName(user) {
+export function friendlyName(user) {
   if (user.display_name) return user.display_name;
   const localPart = String(user.email ?? "").split("@")[0];
   const first = localPart.replace(/[^a-zA-Z0-9._-]/g, "")
@@ -44,20 +44,30 @@ export function renderVaultPortal() {
 }
 
 export function renderVaultFeedback() {
+  const option = (value,label,description,selected=false) =>
+    '<label class="vault-profile-option"><input type="radio" name="vault-profile" value="' + value +
+    '" data-vault-profile autocomplete="off"' + (selected?' checked':'') + '>' +
+    '<span class="vault-profile-copy"><strong>' + label + '</strong><small>' + description + '</small></span>' +
+    '<span class="vault-profile-indicator" aria-hidden="true"></span></label>';
   return '<section class="vault-feedback" aria-labelledby="vault-feedback-heading">' +
-    '<div class="vault-feedback-head"><div><span class="eyebrow">VAULT ATMOSPHERE</span>' +
-    '<h2 id="vault-feedback-heading">Set the mood</h2></div>' +
-    '<p>Optional, off by default. Play effects when you tap <strong>Unlock the vault</strong> or <strong>Replay vault opening</strong>. Automatic entrances may be silent.</p></div>' +
-    '<div class="vault-feedback-actions" data-vault-feedback>' +
-    '<label class="vault-feedback-switch"><input type="checkbox" data-vault-sound autocomplete="off">' +
-    '<span><strong>Mechanical sound</strong><small>Original clicks, low rumble and gold chime</small></span></label>' +
-    '<label class="vault-feedback-switch"><input type="checkbox" data-vault-haptics autocomplete="off">' +
-    '<span><strong>Gentle haptics</strong><small>Only where browser vibration is supported</small></span></label></div>' +
+    '<div class="vault-feedback-head"><span class="eyebrow">VAULT ATMOSPHERE</span>' +
+    '<h2 id="vault-feedback-heading">Choose your soundscape</h2>' +
+    '<p>All effects are original, synthesized locally, and only play after your interaction. Silent is the default.</p></div>' +
+    '<fieldset class="vault-profile-group" data-vault-profiles><legend>VAULT SOUND PROFILE</legend>' +
+    '<div class="vault-profile-list">' +
+    option("silent","Silent","No sound. All the cinematic visuals remain.",true) +
+    option("classic","Classic","Subtle tumblers, mechanical locks and a warm chime.") +
+    option("cinematic","Cinematic","Deep mechanism, layered shimmer and dramatic release.") +
+    '</div></fieldset>' +
+    '<button class="vault-audition-button" type="button" data-vault-audition>Preview selected sound</button>' +
+    '<label class="vault-feedback-switch vault-haptic-option"><input type="checkbox" data-vault-haptics autocomplete="off">' +
+    '<span><strong>Gentle haptics</strong><small>Only when your browser supports vibration</small></span></label>' +
+    '<p class="vault-feedback-support" data-vault-support></p>' +
     '<p class="vault-feedback-hint" data-vault-feedback-hint role="status" aria-live="polite"></p>' +
     '</section>';
 }
 
-export function renderMemberPage({user, productCount, layout, csrfField, saved = false}) {
+export function renderMemberPage({user, productCount, layout, csrfField, memberCode, saved = false}) {
   const rawName = friendlyName(user);
   const name = esc(rawName);
   const terminalPunctuation = /[.!?]$/u.test(rawName) ? "" : ".";
@@ -65,6 +75,7 @@ export function renderMemberPage({user, productCount, layout, csrfField, saved =
   const fullName = esc(user.display_name ?? "");
   const count = Number.isSafeInteger(productCount) && productCount >= 0 ? productCount : 0;
   const role = user.role === "admin" ? "Administrator" : "Verified member";
+  const code = esc(memberCode);
   const content =
     renderVaultPortal() +
     '<div class="member-dashboard">' +
@@ -90,17 +101,54 @@ export function renderMemberPage({user, productCount, layout, csrfField, saved =
         '<div class="member-stat"><span>YOUR ACCOUNT</span><strong>Secure</strong><small>Email-verified sign-in</small></div>' +
       '</section>' +
       '<section class="member-section" aria-labelledby="member-shortcuts-title">' +
-        '<div class="member-section-head"><div><span class="eyebrow">EXPLORE YOUR SPACE</span><h2 id="member-shortcuts-title">Your destinations</h2></div></div>' +
-        '<div class="member-shortcuts">' +
-          '<a href="/catalog" class="member-shortcut"><span class="member-shortcut-icon" aria-hidden="true">✦</span>' +
-            '<span><strong>The Locker Files</strong><small>Browse the member-only concept archive</small></span><b aria-hidden="true">↗</b></a>' +
-          '<a href="/" class="member-shortcut"><span class="member-shortcut-icon" aria-hidden="true">◇</span>' +
-            '<span><strong>Brand home</strong><small>Explore The Green Locker identity</small></span><b aria-hidden="true">↗</b></a>' +
-          '<a href="#member-settings" class="member-shortcut"><span class="member-shortcut-icon" aria-hidden="true">⚙</span>' +
-            '<span><strong>Your preferences</strong><small>Personalize your vault and atmosphere</small></span><b aria-hidden="true">↘</b></a>' +
+        '<div class="member-section-head"><div><span class="eyebrow">FOUR WAYS INSIDE</span><h2 id="member-shortcuts-title">Open a compartment</h2></div></div>' +
+        '<div class="member-compartments">' +
+          '<a href="/catalog" class="member-compartment" data-vault-compartment>' +
+            '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
+            '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
+            '<span class="compartment-content"><span class="compartment-index">CHAMBER 01 · THE ARCHIVE</span>' +
+            '<span class="compartment-emblem" aria-hidden="true">✦</span><strong>The Locker Files</strong>' +
+            '<small>Explore private concept records</small><span class="compartment-action">OPEN ARCHIVE ↗</span></span></a>' +
+          '<a href="#member-card" class="member-compartment" data-vault-compartment>' +
+            '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
+            '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
+            '<span class="compartment-content"><span class="compartment-index">CHAMBER 02 · YOUR CREDENTIAL</span>' +
+            '<span class="compartment-emblem" aria-hidden="true">◇</span><strong>Member card</strong>' +
+            '<small>Your personal digital credential</small><span class="compartment-action">VIEW CARD ↓</span></span></a>' +
+          '<a href="#member-settings" class="member-compartment" data-vault-compartment>' +
+            '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
+            '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
+            '<span class="compartment-content"><span class="compartment-index">CHAMBER 03 · THE CONTROL ROOM</span>' +
+            '<span class="compartment-emblem" aria-hidden="true">⚙</span><strong>Vault settings</strong>' +
+            '<small>Personalize your name and atmosphere</small><span class="compartment-action">ADJUST SETTINGS ↓</span></span></a>' +
+          '<a href="/" class="member-compartment" data-vault-compartment>' +
+            '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
+            '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
+            '<span class="compartment-content"><span class="compartment-index">CHAMBER 04 · THE WORLD</span>' +
+            '<span class="compartment-emblem" aria-hidden="true">✧</span><strong>Brand home</strong>' +
+            '<small>Discover The Green Locker identity</small><span class="compartment-action">EXPLORE ↗</span></span></a>' +
         '</div>' +
       '</section>' +
-      '<section id="member-settings" class="member-section member-settings" aria-labelledby="member-settings-title">' +
+      '<section id="member-card" class="member-section member-identity-section" aria-labelledby="member-card-title" tabindex="-1">' +
+        '<div class="member-section-head"><div><span class="eyebrow">UNIQUELY YOURS</span><h2 id="member-card-title">Your digital membership card</h2></div></div>' +
+        '<div class="member-card-layout">' +
+          '<div class="member-credential" role="group" aria-label="Private digital membership card">' +
+            '<div class="member-credential-halo" aria-hidden="true"></div>' +
+            '<div class="member-credential-top"><img src="/logo" alt="The Green Locker shield" width="72" height="72">' +
+            '<span><strong>THE GREEN LOCKER</strong><small>PRIVATE MEMBER · DIGITAL CREDENTIAL</small></span></div>' +
+            '<div class="member-credential-details"><span>MEMBER NAME</span><strong>' + name + '</strong>' +
+            '<span>MEMBER REFERENCE</span><code data-member-code>' + code + '</code></div>' +
+            '<div class="member-credential-foot">PRIVATE CONCEPT MEMBERSHIP · NOT A LOGIN CREDENTIAL</div>' +
+          '</div>' +
+          '<div class="member-card-aside"><span class="eyebrow">YOUR DISTINCTIVE REFERENCE</span>' +
+            '<h3>A card with your name on it.</h3>' +
+            '<p>Your membership card is securely associated with your signed-in account. Its reference remains consistent across visits and is not a password, access token, or proof of eligibility to purchase.</p>' +
+            '<p>The downloadable SVG uses the official shield logo and stays crisp at any size.</p>' +
+            '<a class="member-card-download" href="/member/card.svg" download="the-green-locker-member-card.svg">Download my card (SVG)</a>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+      '<section id="member-settings" class="member-section member-settings" aria-labelledby="member-settings-title" tabindex="-1">' +
         '<div class="member-section-head"><div><span class="eyebrow">A VAULT THAT FEELS LIKE YOURS</span>' +
           '<h2 id="member-settings-title">Member preferences</h2></div></div>' +
         '<div class="member-settings-grid">' +
@@ -120,6 +168,6 @@ export function renderMemberPage({user, productCount, layout, csrfField, saved =
         '</div>' +
       '</section>' +
       '<p class="member-footnote">PRIVATE CONCEPT ENVIRONMENT · No prices, cart, purchases, reservations, shipping or fulfillment.</p>' +
-    '</div><script src="/vault-entry.js" defer></script>';
+    '</div><script src="/vault-entry.js" defer></script><script src="/member-compartments.js" defer></script>';
   return layout("Your private vault",content,user,user.csrf);
 }

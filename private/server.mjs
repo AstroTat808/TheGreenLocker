@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
-import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal } from "./member.mjs";
+import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
+import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
 import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
@@ -48,6 +49,8 @@ export function openDb(dbPath) {
  db.exec("PRAGMA foreign_keys=ON;");
  db.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT;");
+ if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "member_code")) db.exec("ALTER TABLE users ADD COLUMN member_code TEXT;");
+ db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_member_code ON users(member_code) WHERE member_code IS NOT NULL;");
  db.exec("CREATE TABLE IF NOT EXISTS sessions (id_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf TEXT NOT NULL, expires_at INTEGER NOT NULL);");
  db.exec("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'), created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
@@ -146,7 +149,18 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (user.role === "admin" && !user.mfa_verified_at && pathname !== "/logout") return method==="GET" ? redirect(res,"/admin/mfa") : respond(res,403,"Administrator two-factor authentication required","text/plain; charset=utf-8");
    if (method === "GET" && pathname === "/member") {
      const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
-     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,saved:url.searchParams.get("saved")==="1"}));
+     const memberCode = ensureMemberCode(db,user.id);
+     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,saved:url.searchParams.get("saved")==="1"}));
+   }
+   if (method === "GET" && pathname === "/member/card.svg") {
+     const memberCode = ensureMemberCode(db,user.id);
+     const logoBase64 = fs.readFileSync(path.join(root,"assets/shield-logo.webp")).toString("base64");
+     const svg = renderMemberCardSvg({displayName:friendlyName(user),memberCode,logoBase64});
+     return respond(res,200,svg,"image/svg+xml; charset=utf-8",{
+       "Content-Disposition":'attachment; filename="the-green-locker-member-card.svg"',
+       "Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox",
+       "X-Content-Type-Options":"nosniff"
+     });
    }
    if (method === "POST" && pathname === "/member/profile") {
      const params = await formBody(req);
@@ -162,7 +176,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
-   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/member-compartments") ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/catalog") return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db));

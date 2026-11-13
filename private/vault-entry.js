@@ -16,16 +16,19 @@
   const background = [...document.querySelectorAll(
     ".private-header,.private-notice,.private-title,.catalog-grid,.member-dashboard,.private-footer"
   )];
-  const soundSwitch = document.querySelector("[data-vault-sound]");
+  const profileInputs = [...document.querySelectorAll("[data-vault-profile]")];
+  const audition = document.querySelector("[data-vault-audition]");
   const hapticSwitch = document.querySelector("[data-vault-haptics]");
   const hint = document.querySelector("[data-vault-feedback-hint]");
+  const support = document.querySelector("[data-vault-support]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const seenKey = "tgl:vault-entry:v3";
-  const preferenceKey = "tgl:vault-feedback:v1";
+  const preferenceKey = "tgl:vault-feedback:v2";
+  const legacyPreferenceKey = "tgl:vault-feedback:v1";
   const durationMs = 2250;
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   const vibrationSupported = typeof navigator.vibrate === "function";
-  let prefs = { sound: false, haptics: false };
+  let prefs = { profile: "silent", haptics: false };
   let active = false;
   let timeout = null;
   let audioContext = null;
@@ -41,31 +44,54 @@
     try { sessionStorage.setItem(seenKey, "1"); } catch { /* Optional storage. */ }
   }
   try {
-    const stored = JSON.parse(localStorage.getItem(preferenceKey) || "{}");
-    prefs.sound = stored?.sound === true && Boolean(AudioCtor);
-    prefs.haptics = stored?.haptics === true && vibrationSupported;
+    let stored = JSON.parse(localStorage.getItem(preferenceKey) || "null");
+    if (!stored || typeof stored !== "object") {
+      // Preserve explicitly enabled audio from the previous on/off setting.
+      const old = JSON.parse(localStorage.getItem(legacyPreferenceKey) || "{}");
+      stored = {
+        profile: old?.sound === true ? "classic" : "silent",
+        haptics: old?.haptics === true
+      };
+    }
+    prefs.profile = AudioCtor && ["classic","cinematic"].includes(stored.profile)
+      ? stored.profile : "silent";
+    prefs.haptics = stored.haptics === true && vibrationSupported;
   } catch { /* Private browsing or disabled storage is fine. */ }
   function save() {
     try { localStorage.setItem(preferenceKey, JSON.stringify(prefs)); }
     catch { /* Preferences remain active only for this page. */ }
   }
   function describeSupport() {
-    if (!hint) return;
     const unavailable = [];
     if (!AudioCtor) unavailable.push("Sound is unavailable in this browser.");
     if (!vibrationSupported) unavailable.push("Haptics are not supported by this browser (including most iPhone browsers).");
-    hint.textContent = unavailable.length ? unavailable.join(" ") :
-      "Both effects are optional, enabled only when you tap to unlock or replay.";
+    if (support) support.textContent = unavailable.join(" ");
+    if (hint && !hint.textContent) hint.textContent = "Select a soundscape to preview it. No sound plays automatically.";
   }
-  if (soundSwitch) {
-    soundSwitch.checked = prefs.sound;
-    soundSwitch.disabled = !AudioCtor;
-    soundSwitch.addEventListener("change", () => {
-      prefs.sound = soundSwitch.checked && Boolean(AudioCtor);
+  for (const option of profileInputs) {
+    option.checked = option.value === prefs.profile;
+    option.disabled = option.value !== "silent" && !AudioCtor;
+    option.addEventListener("change",() => {
+      if (!option.checked) return;
+      prefs.profile = ["classic","cinematic"].includes(option.value) && AudioCtor
+        ? option.value : "silent";
+      quiet();
       save();
-      if (!prefs.sound) quiet();
+      describeSupport();
     });
   }
+  audition?.addEventListener("click",() => {
+    if (prefs.profile === "silent") {
+      if (hint) hint.textContent = "Silent mode: audio remains off.";
+      return;
+    }
+    playSound();
+    if (hint) hint.textContent = prefs.profile === "cinematic"
+      ? "Previewing Cinematic: layered machinery and a gold release."
+      : "Previewing Classic: soft tumblers and a warm chime.";
+  });
+  describeSupport();
+  
   if (hapticSwitch) {
     hapticSwitch.checked = prefs.haptics;
     hapticSwitch.disabled = !vibrationSupported;
@@ -91,7 +117,7 @@
 
   // Short bespoke, deliberately quiet mechanical effects. Never called on automatic playback.
   function playSound() {
-    if (!prefs.sound || !AudioCtor) return;
+    if (prefs.profile === "silent" || !AudioCtor) return;
     try {
       if (!audioContext) audioContext = new AudioCtor();
       if (audioContext.state === "suspended") void audioContext.resume().catch(() => {});
@@ -118,14 +144,27 @@
         oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
       };
 
-      // Soft tumblers, a low vault mechanism and a warm, two-note release.
-      voice({type:"triangle",from:240,to:95,at:0.02,duration:0.11,level:0.022});
-      voice({type:"triangle",from:210,to:110,at:0.21,duration:0.11,level:0.022});
-      voice({type:"sawtooth",from:74,to:45,at:0.30,duration:0.85,level:0.009});
-      voice({type:"sine",from:150,to:90,at:0.55,duration:0.58,level:0.031});
-      voice({type:"sine",from:440,to:550,at:1.23,duration:0.54,level:0.023});
-      voice({type:"sine",from:659,to:880,at:1.42,duration:0.58,level:0.018});
-      voice({type:"sine",from:990,to:880,at:1.58,duration:0.34,level:0.009});
+      if (prefs.profile === "classic") {
+        // Original close-up tumblers, restrained low mechanism, warm chime.
+        voice({type:"triangle",from:240,to:95,at:0.02,duration:0.11,level:0.022});
+        voice({type:"triangle",from:210,to:110,at:0.21,duration:0.11,level:0.022});
+        voice({type:"sawtooth",from:74,to:45,at:0.30,duration:0.85,level:0.009});
+        voice({type:"sine",from:150,to:90,at:0.55,duration:0.58,level:0.031});
+        voice({type:"sine",from:440,to:550,at:1.23,duration:0.54,level:0.023});
+        voice({type:"sine",from:659,to:880,at:1.42,duration:0.58,level:0.018});
+        voice({type:"sine",from:990,to:880,at:1.58,duration:0.34,level:0.009});
+      } else if (prefs.profile === "cinematic") {
+        // Broader, film-style layered metallic mechanism with capped output.
+        voice({type:"triangle",from:330,to:125,at:0.02,duration:0.17,level:0.018});
+        voice({type:"triangle",from:240,to:82,at:0.18,duration:0.19,level:0.021});
+        voice({type:"sawtooth",from:69,to:36,at:0.24,duration:1.18,level:0.008});
+        voice({type:"sine",from:92,to:51,at:0.30,duration:1.14,level:0.036});
+        voice({type:"triangle",from:140,to:65,at:0.64,duration:0.66,level:0.017});
+        voice({type:"sine",from:329.6,to:440,at:1.15,duration:0.72,level:0.020});
+        voice({type:"sine",from:554.4,to:740,at:1.30,duration:0.78,level:0.020});
+        voice({type:"sine",from:830,to:1108,at:1.42,duration:0.67,level:0.013});
+        voice({type:"triangle",from:1245,to:880,at:1.58,duration:0.57,level:0.009});
+      }
     } catch {
       // Supported browsers may reject Web Audio in restricted playback contexts.
       quiet();
