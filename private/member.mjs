@@ -62,6 +62,7 @@ export function renderVaultFeedback() {
     '<button class="vault-audition-button" type="button" data-vault-audition>Preview selected sound</button>' +
     '<label class="vault-feedback-switch vault-haptic-option"><input type="checkbox" data-vault-haptics autocomplete="off">' +
     '<span><strong>Gentle haptics</strong><small>Only when your browser supports vibration</small></span></label>' +
+    '<p class="vault-feedback-support" data-vault-support></p>' +
     '<p class="vault-feedback-hint" data-vault-feedback-hint role="status" aria-live="polite"></p>' +
     '</section>';
 }
