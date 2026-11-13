@@ -26,7 +26,20 @@ const layout = (title, contents, user = null, csrf = "") => '<!doctype html><htm
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
 const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
 const productRows = (products,db) => products.map(p => '<article class="catalog-card">' + (p.image_key ? '<img class="catalog-image" src="/media/' + encodeURIComponent(p.image_key) + '" alt="Draft product image for ' + esc(p.name) + '" loading="lazy">' : "") + '<div class="catalog-tag">FILE ' + esc(p.sku) + ' · ' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.codename || p.name) + '</h2>' + (p.codename ? '<p class="locker-real-name">Internal identification: ' + esc(p.name) + '</p>' : "") + renderLockerSizeChoices(db,p) + '<small>Private draft archive · No prices, reservations or sales</small></article>').join("");
-const catalogPage = (products, user, csrf,db) => layout("The Locker Files", '<section class="private-title"><span class="eyebrow">THE GREEN LOCKER / PRIVATE ARCHIVE</span><h1>THE LOCKER <em>FILES.</em></h1><p>Distinctive codenames. Concept formats. Members-only development preview. These are design records, not orderable products.</p></section><section class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">The catalog is empty. An administrator can create the first draft item.</p>') + '</section><script src="/locker-motion.js" defer></script>',user,csrf);
+const catalogPage = (products, user, csrf,db) => layout("The Locker Files",
+  '<div id="locker-entry-portal" class="locker-entry-portal" role="dialog" aria-modal="true" aria-label="Opening the Locker Files vault" hidden>'+
+    '<div class="locker-entry-backdrop" aria-hidden="true"></div>'+
+    '<div class="locker-entry-door locker-entry-door-left" aria-hidden="true"></div>'+
+    '<div class="locker-entry-door locker-entry-door-right" aria-hidden="true"></div>'+
+    '<div class="locker-entry-center" aria-hidden="true"><img src="/logo" alt="" width="92" height="92"><span class="locker-entry-ring"></span>'+
+    '<span class="locker-entry-caption">UNLOCKING THE ARCHIVE</span></div>'+
+    '<div class="locker-entry-glow" aria-hidden="true"></div>'+
+    '<button class="locker-entry-skip" type="button">Skip intro</button>'+
+  '</div>'+
+  '<section class="private-title"><span class="eyebrow">THE GREEN LOCKER / PRIVATE ARCHIVE</span><h1>THE LOCKER <em>FILES.</em></h1><p>Distinctive codenames. Concept formats. Members-only development preview. These are design records, not orderable products.</p>'+
+  '<button id="locker-entry-replay" class="locker-entry-replay" type="button" hidden>Replay vault opening</button></section>'+
+  '<section class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">The catalog is empty. An administrator can create the first draft item.</p>') +
+  '</section><script src="/vault-entry.js" defer></script><script src="/locker-motion.js" defer></script>',user,csrf);
 const adminPage = (products, movements, usersCount, user, csrf, notice = "", extras = "", categoryOptions = "") => {
  const total = products.reduce((sum,p)=>sum+p.stock,0);
  const rows = products.map(p=>'<tr><td>' + esc(p.sku) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.codename || '—') + '</td><td>' + esc(p.category) + '</td><td>' + p.stock + '</td><td>Draft only</td></tr>').join("");
@@ -55,8 +68,11 @@ function respond(res, code, body, type = "text/html; charset=utf-8", additional 
 }
 const redirect = (res, to, extra = {}) => respond(res, 303, "", "text/plain; charset=utf-8", {Location:to,...extra});
 const cookies = request => Object.fromEntries((request.headers.cookie || "").split(";").map(pair => pair.trim().split("=").map(decodeURIComponent)).filter(pair=>pair.length===2));
-const sessionCookie = token => "tgl_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800" + (process.env.NODE_ENV === "production" ? "; Secure" : "");
-const clearCookie = () => "tgl_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0" + (process.env.NODE_ENV === "production" ? "; Secure" : "");
+// Cloud preview is HTTPS-terminated at the edge but runs NODE_ENV=development for fixtures.
+// Always set Secure for that explicit cloud mode; retain HTTP-only local test support.
+const secureSessionCookie = () => process.env.NODE_ENV === "production" || process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW === "1";
+const sessionCookie = token => "tgl_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800" + (secureSessionCookie() ? "; Secure" : "");
+const clearCookie = () => "tgl_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0" + (secureSessionCookie() ? "; Secure" : "");
 const blocked = (ip, route, max = 10) => {
  const key = ip + ":" + route;
  const entry = LIMITS.get(key);
@@ -140,7 +156,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
-   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname === "/locker-motion.js" ? "private/locker-motion.js" : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/catalog") return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db));
