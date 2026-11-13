@@ -128,6 +128,8 @@ test("certificate notification milestones deduplicate, retry failed sends, and n
  const db=openDb(":memory:");
  t.after(()=>db.close());
  assert.equal(emailAlertsConfigured(env),true);
+ assert.equal(emailAlertsConfigured({...env,TGL_MAIL_MODE:"outbox"}),true,
+   "Certificate alert transport is separate from demo account mail outbox.");
  assert.equal(emailAlertsConfigured({...env,TGL_WALLET_ALERTS_ENABLED:"0"}),false);
  assert.equal(emailAlertsConfigured({...env,TGL_WALLET_ALERT_EMAIL:"bad"}),false);
  const expiration=Date.parse(inspectWalletCertificates(env).certificates[0].expiresAt);
