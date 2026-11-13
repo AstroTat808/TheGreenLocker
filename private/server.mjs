@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
+import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal } from "./member.mjs";
 import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
@@ -21,23 +22,13 @@ const validEmail = value => typeof value === "string" && value.length <= 254 && 
 const safeCompare = (a, b) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 const csrfField = value => '<input type="hidden" name="csrf" value="' + esc(value) + '">';
 const link = (href, title) => '<a href="' + href + '">' + esc(title) + '</a>';
-const header = (title, user, csrf) => '<header class="private-header"><a class="private-logo" href="' + (user ? "/" : "/login") + '"><img src="/logo" alt="" width="52" height="52"><span>THE GREEN <b>LOCKER</b></span></a><nav aria-label="Private navigation">' + (user ? link("/", "Brand home") + link("/catalog", "Concept catalog") + (user.role === "admin" ? link("/admin", "Dashboard") : "") + '<form action="/logout" method="post">' + csrfField(csrf) + '<button type="submit">Log out</button></form>' : link("/login", "Log in") + link("/register", "Register")) + '</nav></header><div class="private-notice">PRIVATE DEVELOPMENT PREVIEW · NO SALES OR ORDERING</div>';
+const header = (title, user, csrf) => '<header class="private-header"><a class="private-logo" href="' + (user ? "/member" : "/login") + '"><img src="/logo" alt="" width="52" height="52"><span>THE GREEN <b>LOCKER</b></span></a><nav aria-label="Private navigation">' + (user ? link("/member", "My vault") + link("/", "Brand home") + link("/catalog", "Concept catalog") + (user.role === "admin" ? link("/admin", "Dashboard") : "") + '<form action="/logout" method="post">' + csrfField(csrf) + '<button type="submit">Log out</button></form>' : link("/login", "Log in") + link("/register", "Register")) + '</nav></header><div class="private-notice">PRIVATE DEVELOPMENT PREVIEW · NO SALES OR ORDERING</div>';
 const layout = (title, contents, user = null, csrf = "") => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#06170d"><meta name="robots" content="noindex,nofollow"><title>' + esc(title) + ' | The Green Locker</title><link rel="icon" type="image/png" href="/favicon.ico"><link rel="stylesheet" href="/private.css"></head><body>' + header(title,user,csrf) + '<main class="private-main">' + contents + '</main><footer class="private-footer">The Green Locker · Internal pre-launch software · No purchases, shipping, or fulfillment</footer></body></html>';
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
 const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
 const productRows = (products,db) => products.map(p => '<article class="catalog-card">' + (p.image_key ? '<img class="catalog-image" src="/media/' + encodeURIComponent(p.image_key) + '" alt="Draft product image for ' + esc(p.name) + '" loading="lazy">' : "") + '<div class="catalog-tag">FILE ' + esc(p.sku) + ' · ' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.codename || p.name) + '</h2>' + (p.codename ? '<p class="locker-real-name">Internal identification: ' + esc(p.name) + '</p>' : "") + renderLockerSizeChoices(db,p) + '<small>Private draft archive · No prices, reservations or sales</small></article>').join("");
 const catalogPage = (products, user, csrf,db) => layout("The Locker Files",
-  '<div id="locker-entry-portal" class="locker-entry-portal" role="dialog" aria-modal="true" aria-label="Opening the Locker Files vault" aria-describedby="locker-entry-instructions" hidden>'+
-    '<span class="locker-entry-sr-only" id="locker-entry-instructions">A short vault animation. Press Escape or Skip intro to continue.</span>'+ 
-    '<div class="locker-entry-backdrop" aria-hidden="true"></div>'+
-    '<div class="locker-entry-door locker-entry-door-left" aria-hidden="true"></div>'+
-    '<div class="locker-entry-door locker-entry-door-right" aria-hidden="true"></div>'+
-    '<div class="locker-entry-center" aria-hidden="true"><img src="/logo" alt="" width="92" height="92"><span class="locker-entry-ring"></span><span class="locker-entry-orbit"></span>'+
-    '<span class="locker-entry-caption">UNLOCKING THE ARCHIVE</span></div>'+
-    '<div class="locker-entry-glow" aria-hidden="true"></div>'+ 
-    '<div class="locker-entry-footer" aria-hidden="true"><span>THE GREEN LOCKER<small>PRIVATE ARCHIVE</small></span><span class="locker-entry-progress"><span></span></span></div>'+
-    '<button class="locker-entry-skip" type="button">Skip intro</button>'+
-  '</div>'+
+  renderVaultPortal() +
   '<section class="private-title"><span class="eyebrow">THE GREEN LOCKER / PRIVATE ARCHIVE</span><h1>THE LOCKER <em>FILES.</em></h1><p>Distinctive codenames. Concept formats. Members-only development preview. These are design records, not orderable products.</p>'+
   '<button id="locker-entry-replay" class="locker-entry-replay" type="button" hidden>Replay vault opening</button></section>'+
   '<section class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">The catalog is empty. An administrator can create the first draft item.</p>') +
@@ -56,6 +47,7 @@ export function openDb(dbPath) {
  const db = new DatabaseSync(dbPath);
  db.exec("PRAGMA foreign_keys=ON;");
  db.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
+ if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT;");
  db.exec("CREATE TABLE IF NOT EXISTS sessions (id_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf TEXT NOT NULL, expires_at INTEGER NOT NULL);");
  db.exec("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'), created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
@@ -112,9 +104,9 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
    const token = cookies(req).tgl_session;
-   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
+   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
    const user = session && session.expires_at > now() ? session : null;
-   if (method === "GET" && pathname === "/login") return user ? redirect(res,"/") : respond(res,200,authPage(false));
+   if (method === "GET" && pathname === "/login") return user ? redirect(res,user.role === "admin" ? "/admin" : "/member") : respond(res,200,authPage(false));
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
    if (["POST","PUT","PATCH","DELETE"].includes(method) && req.headers.origin) {
      // Token confirmation forms intentionally use no-referrer, which can produce Origin: null.
@@ -147,11 +139,23 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      if (userRow.email_verified_at === null) return respond(res,403,authPage(false,"Confirm your email address before signing in."));
      const newToken = random();
      db.prepare("INSERT INTO sessions(id_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)").run(hash(newToken),userRow.id,random(),now()+MS8H);
-     return redirect(res,userRow.role === "admin" ? "/admin/mfa" : "/",{"Set-Cookie":sessionCookie(newToken)});
+     return redirect(res,userRow.role === "admin" ? "/admin/mfa" : "/member",{"Set-Cookie":sessionCookie(newToken)});
    }
    if (!user) return method==="GET" ? redirect(res,"/login") : respond(res,401,"Authentication required","text/plain; charset=utf-8");
    if (await security.mfaRoutes({req,res,user,pathname,method})) return;
    if (user.role === "admin" && !user.mfa_verified_at && pathname !== "/logout") return method==="GET" ? redirect(res,"/admin/mfa") : respond(res,403,"Administrator two-factor authentication required","text/plain; charset=utf-8");
+   if (method === "GET" && pathname === "/member") {
+     const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
+     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,saved:url.searchParams.get("saved")==="1"}));
+   }
+   if (method === "POST" && pathname === "/member/profile") {
+     const params = await formBody(req);
+     if (!safeCompare(bodyValue(params,"csrf"),user.csrf)) return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+     const displayName = normalizeDisplayName(params.get("display_name"));
+     if (!validDisplayName(displayName)) return respond(res,400,"Invalid display name","text/plain; charset=utf-8");
+     db.prepare("UPDATE users SET display_name=? WHERE id=?").run(displayName||null,user.id);
+     return redirect(res,"/member?saved=1");
+   }
    if (method === "GET" && pathname === "/") {
      let html = fs.readFileSync(path.join(root,"index.html"),"utf8");
      html = html.replace("</head>",'<link rel="stylesheet" href="/private.css"></head>');
