@@ -134,7 +134,7 @@ export function createSecurity({db,dbPath,origin,mailSender,respond,redirect,for
  function response(res,title,content,code=200){
    return respond(res,code,layout(title,header(title,content)), "text/html; charset=utf-8",{"Referrer-Policy":"no-referrer"});
  }
- function basicForm(action,fields,button)=>'<form action="'+action+'" method="post">'+fields+'<button class="private-button" type="submit">'+button+'</button></form>';
+ const basicForm=(action,fields,button)=>'<form action="'+action+'" method="post">'+fields+'<button class="private-button" type="submit">'+button+'</button></form>';
  async function publicRoutes({req,res,url,pathname,method}){
   const ip=req.socket.remoteAddress||"unknown";
   if(pathname==="/check-email"&&method==="GET"){
