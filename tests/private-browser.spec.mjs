@@ -95,7 +95,7 @@ test("administrator can manage draft products and stock without sales actions",a
  const createForm=page.locator('form[action="/admin/products"]');
  await createForm.getByLabel("SKU",{exact:true}).fill(sku);
  await createForm.getByLabel("Name",{exact:true}).fill(productName);
- await createForm.getByLabel("Category",{exact:true}).selectOption("Lifestyle");
+ await createForm.locator('select[name="category"]').selectOption("Lifestyle");
  await createForm.getByRole("button",{name:"Save draft"}).click();
  await expect(page.getByText("Draft saved")).toBeVisible();
  await expect(page.getByText(sku,{exact:true}).first()).toBeVisible();
