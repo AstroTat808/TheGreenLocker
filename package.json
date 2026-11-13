@@ -7,11 +7,11 @@
     "check": "node --check app.js && node scripts/check-static-site.mjs && npm run check:backend",
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
-    "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs tests/locker-files.test.mjs tests/wallet-pass.test.mjs tests/wallet-updates.test.mjs tests/wallet-monitor.test.mjs",
+    "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs tests/locker-files.test.mjs tests/wallet-pass.test.mjs tests/wallet-updates.test.mjs tests/wallet-monitor.test.mjs tests/catalog-collections.test.mjs",
     "test:browser": "playwright test",
     "test:private:browser": "playwright test --config=playwright.private.config.mjs",
     "staging:preflight": "node scripts/staging-preflight.mjs",
-    "check:backend": "node --check private/server.mjs && node --check private/security.mjs && node --check private/inventory.mjs && node --check private/locker-files.mjs && node --check private/locker-motion.js && node --check private/vault-entry.js && node --check private/member.mjs && node --check private/member-card.mjs && node --check private/member-card-ui.js && node --check private/wallet-pass.mjs && node --check private/wallet-updates.mjs && node --check private/wallet-monitor.mjs && node --check private/member-compartments.js && node --check private/inventory-client.js && node --check scripts/staging-preflight.mjs && node --check scripts/workshop-preview.mjs",
+    "check:backend": "node --check private/server.mjs && node --check private/security.mjs && node --check private/inventory.mjs && node --check private/locker-files.mjs && node --check private/catalog-collections.mjs && node --check private/locker-motion.js && node --check private/vault-entry.js && node --check private/member.mjs && node --check private/member-card.mjs && node --check private/member-card-ui.js && node --check private/wallet-pass.mjs && node --check private/wallet-updates.mjs && node --check private/wallet-monitor.mjs && node --check private/member-compartments.js && node --check private/inventory-client.js && node --check scripts/staging-preflight.mjs && node --check scripts/workshop-preview.mjs",
     "test:staging": "node --test tests/staging-preflight.test.mjs",
     "preview:workshop": "node scripts/workshop-preview.mjs",
     "test:workshop": "node --test tests/workshop-preview.test.mjs"
