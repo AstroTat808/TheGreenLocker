@@ -7,6 +7,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 const sha=value=>createHash("sha256").update(value,"utf8").digest();
 const equal=(a,b)=>timingSafeEqual(sha(a),sha(b));
 const failures=new Map();
+const securityHeaders={
+  "Cache-Control":"no-store, private",
+  "X-Robots-Tag":"noindex, nofollow",
+  "X-Content-Type-Options":"nosniff",
+  "X-Frame-Options":"DENY",
+  "Referrer-Policy":"no-referrer",
+  "Strict-Transport-Security":"max-age=31536000",
+  "Content-Security-Policy":"default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+};
 export function enforcePreviewGate(server) {
   const username=process.env.TGL_PREVIEW_GATE_USER || "";
   const password=process.env.TGL_PREVIEW_GATE_PASSWORD || "";
@@ -17,13 +26,13 @@ export function enforcePreviewGate(server) {
   server.removeAllListeners("request");
   server.on("request",(req,res)=>{
     if(req.url?.split("?")[0]==="/healthz"){
-      res.writeHead(200,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow"});
+      res.writeHead(200,{"Content-Type":"text/plain; charset=utf-8",...securityHeaders});
       res.end("ok"); return;
     }
     const key=req.socket.remoteAddress || "unknown",now=Date.now();
     const item=failures.get(key);
     if(item?.until>now && item.count>=20){
-      res.writeHead(429,{"Cache-Control":"no-store","Retry-After":"900","X-Robots-Tag":"noindex, nofollow"});
+      res.writeHead(429,{...securityHeaders,"Retry-After":"900"});
       res.end("Too many attempts"); return;
     }
     let ok=false;
@@ -42,9 +51,7 @@ export function enforcePreviewGate(server) {
       failures.set(key,next);
       res.writeHead(401,{
         "WWW-Authenticate":'Basic realm="Green Locker Private Preview", charset="UTF-8"',
-        "Cache-Control":"no-store, private",
-        "X-Robots-Tag":"noindex, nofollow",
-        "X-Content-Type-Options":"nosniff"
+        ...securityHeaders
       });res.end("Private preview authentication required");return;
     }
     for(const listener of previous)listener.call(server,req,res);
