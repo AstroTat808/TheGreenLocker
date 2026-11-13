@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {openDb} from "../private/server.mjs";
-import {LOCKER_FILE_NAMES,LOCKER_TIERS,installLockerFiles,renderLockerSizeChoices,validLockerCodename} from "../private/locker-files.mjs";
+import {LOCKER_FILE_NAMES,LOCKER_TIERS,installLockerFiles,renderLockerSizeChoices,renderInternalLockerPackage,validLockerCodename} from "../private/locker-files.mjs";
 
 const expected=[["xs",1],["s",2],["m",4],["l",8],["xl",32]];
 const record=(db,productId)=>db.prepare("SELECT tier,weight_eighth_oz,status FROM product_size_variants WHERE product_id=?").all(productId)
@@ -13,6 +13,8 @@ test("twelve distinct codenames and five exact XS–XL draft-only formats",()=>{
  assert.equal(new Set(LOCKER_FILE_NAMES.map(v=>v.toLowerCase())).size,12);
  assert.deepEqual(LOCKER_TIERS.map(v=>[v.tier,v.eighthOunces]),expected);
  assert.deepEqual(LOCKER_TIERS.map(v=>v.display),["1/8 oz","1/4 oz","1/2 oz","1 oz","1/4 lb · 4 oz"]);
+ assert.deepEqual(LOCKER_TIERS.map(v=>v.label),["THE KEY","THE SIGNAL","THE CIPHER","THE VAULT","THE ARCHIVE"]);
+ assert.deepEqual(LOCKER_TIERS.map(v=>v.internalOnly),[false,false,false,false,true]);
  for(const codename of LOCKER_FILE_NAMES)assert.equal(validLockerCodename(codename),true,codename);
  for(const invalid of ["","AB","<script>alert(1)</script>","Bad\nCode","X".repeat(57)])assert.equal(validLockerCodename(invalid),false);
 });
@@ -39,13 +41,21 @@ test("fresh install backfills, creates five fixed draft formats, and handles cat
   assert.throws(()=>db.prepare("INSERT INTO products(sku,name,category,codename,created_by) VALUES(?,?,?,?,?)")
     .run("GL-002","Another concept","Botanicals","ghost key",user),/UNIQUE constraint/);
   let html=renderLockerSizeChoices(db,{id:fresh,category:"Botanicals"});
-  assert.equal((html.match(/class="locker-tier-face"/g)||[]).length,5);
+  assert.equal((html.match(/class="locker-tier-face"/g)||[]).length,4);
   assert.match(html,/1\/8 oz/);
   assert.match(html,/1\/4 oz/);
   assert.match(html,/1\/2 oz/);
   assert.match(html,/1 oz/);
-  assert.match(html,/1\/4 lb/);
-  assert.match(html,/4 oz/);
+  assert.match(html,/THE KEY/);
+  assert.match(html,/THE SIGNAL/);
+  assert.match(html,/THE CIPHER/);
+  assert.match(html,/THE VAULT/);
+  assert.doesNotMatch(html,/THE ARCHIVE|1\/4 lb|4 oz/);
+  const internal=renderInternalLockerPackage();
+  assert.match(internal,/THE ARCHIVE/);
+  assert.match(internal,/1\/4 lb/);
+  assert.match(internal,/4 oz/);
+  assert.match(internal,/Not visible as a member package choice/);
   assert.doesNotMatch(html,/16 oz|add to cart|buy now|checkout|purchase now|order now/i);
   assert.equal(renderLockerSizeChoices(db,{id:nonbot,category:"Lifestyle"}),"");
   db.prepare("UPDATE products SET category='Botanicals' WHERE id=?").run(nonbot);
