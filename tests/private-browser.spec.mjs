@@ -233,7 +233,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
    await page.emulateMedia({reducedMotion:"no-preference"});
  }
  await page.getByRole("link",{name:"Concept catalog"}).click();
- await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
+ await expect(page.getByRole("heading",{name:/THE COLLECTION VAULT/i})).toBeVisible();
  const portal=page.locator("#locker-entry-portal");
  const skipIntro=page.getByRole("button",{name:"Skip intro"});
  const replayIntro=page.getByRole("button",{name:"Replay vault opening"});
@@ -252,7 +252,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(portal).toBeHidden();
  await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",false);
  await expect(page.locator("body")).not.toHaveClass(/locker-entry-active/);
- await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeFocused();
+ await expect(page.getByRole("heading",{name:/THE COLLECTION VAULT/i})).toBeFocused();
  await replayIntro.click();
  await expect(portal).toBeVisible();
  await skipIntro.click();
