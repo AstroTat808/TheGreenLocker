@@ -13,3 +13,6 @@ test-results/
 staging.env
 *.outbox.ndjson
 private-images/
+
+# Workshop live development preview files and random local credentials
+.workshop-preview/
