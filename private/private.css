@@ -937,3 +937,30 @@ body{
 @media(prefers-reduced-motion:reduce){
   .wallet-updates-toggle{transition:none!important}
 }
+
+
+/* WebKit 3D compositing correction:
+   On iOS, backface-visibility alone occasionally paints BOTH faces,
+   including mirror-image text on the supposedly hidden reverse.
+   Explicit face visibility switches at the midpoint of the 800ms flip,
+   retaining the premium rotation without leaking mirrored content. */
+.member-credential-scene .member-card-front{
+  visibility:visible;
+  transition:visibility 0s linear 400ms;
+}
+.member-credential-scene .member-card-back{
+  visibility:hidden;
+  transition:visibility 0s linear 400ms;
+}
+.member-credential-scene.is-flipped .member-card-front{
+  visibility:hidden;
+}
+.member-credential-scene.is-flipped .member-card-back{
+  visibility:visible;
+}
+@media(prefers-reduced-motion:reduce){
+  .member-credential-scene .member-card-front,
+  .member-credential-scene .member-card-back{
+    transition:none!important;
+  }
+}
