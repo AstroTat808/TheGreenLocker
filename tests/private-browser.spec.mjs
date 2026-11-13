@@ -138,11 +138,19 @@ test("invited member can register, log in, and view concept-only catalog",async(
  const walletText=await walletAttempt.text();
  expect(walletText).toContain("signing is not yet configured");
  await expect(page.getByRole("button",{name:"Flip to back of membership card"})).toBeVisible();
+ // This explicitly catches the iPhone WebKit defect in which both mirrored
+ // card faces were painted through each other despite backface-visibility.
+ await expect(page.locator("[data-card-front]")).toHaveCSS("visibility","visible");
+ await expect(page.locator("[data-card-back]")).toHaveCSS("visibility","hidden");
  await page.getByRole("button",{name:"Flip to back of membership card"}).click();
  await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","back");
  await expect(page.locator("[data-card-back]")).toHaveAttribute("aria-hidden","false");
+ await expect(page.locator("[data-card-front]")).toHaveCSS("visibility","hidden",{timeout:3000});
+ await expect(page.locator("[data-card-back]")).toHaveCSS("visibility","visible",{timeout:3000});
  await page.getByRole("button",{name:"Flip to front of membership card"}).click();
  await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","front");
+ await expect(page.locator("[data-card-front]")).toHaveCSS("visibility","visible",{timeout:3000});
+ await expect(page.locator("[data-card-back]")).toHaveCSS("visibility","hidden",{timeout:3000});
  await page.getByLabel("Card finish").selectOption("obsidian");
  await page.getByLabel("Card edition").selectOption("Vault Explorer");
  await page.getByLabel("Personal motto (optional)").fill("Stay curious. Stay original.");
@@ -177,6 +185,28 @@ test("invited member can register, log in, and view concept-only catalog",async(
      expect(cardWidth).toBeLessThanOrEqual(width);
      const flipHeight=await page.locator("[data-card-flip]").evaluate(el=>el.getBoundingClientRect().height);
      expect(flipHeight).toBeGreaterThanOrEqual(44);
+     const faceMetric=await page.locator("[data-card-front]").evaluate(face=>{
+       const r=face.getBoundingClientRect();
+       const items=[".member-credential-top",".member-credential-details",".member-credential-foot"]
+         .map(selector=>{
+           const el=face.querySelector(selector);
+           const b=el.getBoundingClientRect();
+           return {top:b.top,bottom:b.bottom,left:b.left,right:b.right};
+         });
+       return {face:{top:r.top,bottom:r.bottom,left:r.left,right:r.right},
+         items,front:window.getComputedStyle(face).visibility,
+         back:window.getComputedStyle(document.querySelector("[data-card-back]")).visibility};
+     });
+     expect(faceMetric.front).toBe("visible");
+     expect(faceMetric.back).toBe("hidden");
+     for(const item of faceMetric.items){
+       expect(item.left).toBeGreaterThanOrEqual(faceMetric.face.left-2);
+       expect(item.right).toBeLessThanOrEqual(faceMetric.face.right+2);
+       expect(item.top).toBeGreaterThanOrEqual(faceMetric.face.top-2);
+       expect(item.bottom).toBeLessThanOrEqual(faceMetric.face.bottom+2);
+     }
+     expect(faceMetric.items[0].bottom).toBeLessThanOrEqual(faceMetric.items[1].top+1);
+     expect(faceMetric.items[1].bottom).toBeLessThanOrEqual(faceMetric.items[2].top+1);
      for(const [name,selector] of [
        ["welcome",".member-hero"],
        ["overview",".member-overview"],
@@ -191,6 +221,8 @@ test("invited member can register, log in, and view concept-only catalog",async(
      }
      await page.getByRole("button",{name:"Flip to back of membership card"}).click();
      await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","back");
+     await expect(page.locator("[data-card-front]")).toHaveCSS("visibility","hidden");
+     await expect(page.locator("[data-card-back]")).toHaveCSS("visibility","visible");
      await page.locator("#member-card").screenshot({
        path:path.join(directory,width+"-card-back.png"),animations:"disabled"
      });
