@@ -67,6 +67,40 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await login(page,email);
  await expect(page.getByRole("heading",{level:1})).toBeVisible();
  await assertNoOverflow(page);
+ await expect(page.getByRole("heading",{name:/Aloha,/})).toBeVisible();
+ await expect(page.getByRole("link",{name:/Unlock the vault/})).toBeVisible();
+ await expect(page.getByRole("link",{name:"My vault"})).toBeVisible();
+ await expect(page.locator(".private-header nav").getByRole("link",{name:"Brand home"})).toBeVisible();
+ await expect(page.getByRole("link",{name:"Browse without animation"})).toBeVisible();
+ await expect(page.locator(".member-stat")).toHaveCount(3);
+ await expect(page.getByText(/No prices, cart, purchases, reservations/i)).toBeVisible();
+ const sound=page.getByRole("checkbox",{name:/Mechanical sound/});
+ const haptics=page.getByRole("checkbox",{name:/Gentle haptics/});
+ await expect(sound).not.toBeChecked();
+ await expect(haptics).not.toBeChecked();
+ if(await sound.isEnabled()) await sound.check();
+ const hapticsAvailable=await haptics.isEnabled();
+ if(hapticsAvailable) await haptics.check();
+ else await expect(page.locator("[data-vault-feedback-hint]")).toContainText("not supported");
+ await page.reload();
+ if(await sound.isEnabled()) await expect(sound).toBeChecked();
+ if(hapticsAvailable) await expect(haptics).toBeChecked();
+ await page.getByLabel("Display name").fill("Christopher");
+ await page.getByRole("button",{name:"Save display name"}).click();
+ await expect(page).toHaveURL(/\/member\?saved=1$/);
+ await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
+ await page.reload();
+ await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
+ await expect(page.locator("#member-display-name")).toHaveValue("Christopher");
+ await assertNoOverflow(page);
+ if(test.info().project.name==="private-mobile-webkit"){
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:740});
+     await assertNoOverflow(page);
+     const ctaHeight=await page.getByRole("link",{name:/Unlock the vault/}).evaluate(el=>el.getBoundingClientRect().height);
+     expect(ctaHeight).toBeGreaterThanOrEqual(44);
+   }
+ }
  await page.getByRole("link",{name:"Concept catalog"}).click();
  await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
  const portal=page.locator("#locker-entry-portal");
@@ -112,60 +146,8 @@ test("invited member can register, log in, and view concept-only catalog",async(
      expect(navHeight).toBeGreaterThanOrEqual(44);
    }
  }
- await page.getByRole("button",{name:"Log out"}).click();
- await expect(page).toHaveURL(/\/login$/);
- await page.goto("/catalog");
- await expect(page).toHaveURL(/\/login$/);
-});
-test("member vault dashboard personalizes greeting, remembers opt-in and unlocks accessibly",async({page})=>{
- const email=emailFor();
- await register(page,email);
- await login(page,email);
- await expect(page.getByRole("heading",{name:/Aloha,/})).toBeVisible();
- await expect(page.getByRole("link",{name:/Unlock the vault/})).toBeVisible();
- await expect(page.getByRole("link",{name:"My vault"})).toBeVisible();
- await expect(page.getByRole("link",{name:"Brand home"})).toBeVisible();
- await expect(page.getByRole("link",{name:/Browse without animation/})).toBeVisible();
- await expect(page.locator(".member-stat")).toHaveCount(3);
- await expect(page.getByText(/No prices, cart, purchases, reservations/i)).toBeVisible();
- await assertNoOverflow(page);
-
- const sound=page.getByRole("checkbox",{name:/Mechanical sound/});
- const haptics=page.getByRole("checkbox",{name:/Gentle haptics/});
- await expect(sound).not.toBeChecked();
- await expect(haptics).not.toBeChecked();
- if(await sound.isEnabled()){
-   await sound.check();
-   await expect(sound).toBeChecked();
- }
- const hapticsAvailable=await haptics.isEnabled();
- if(hapticsAvailable){
-   await haptics.check();
-   await expect(haptics).toBeChecked();
- }else{
-   await expect(page.locator("[data-vault-feedback-hint]")).toContainText("not supported");
- }
- await page.reload();
- if(await sound.isEnabled()) await expect(sound).toBeChecked();
- if(hapticsAvailable) await expect(haptics).toBeChecked();
-
- await page.getByLabel("Display name").fill("Christopher");
- await page.getByRole("button",{name:"Save display name"}).click();
- await expect(page).toHaveURL(/\/member\?saved=1$/);
- await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
- await page.reload();
- await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
- await expect(page.locator("#member-display-name")).toHaveValue("Christopher");
- await assertNoOverflow(page);
-
- if(test.info().project.name==="private-mobile-webkit"){
-   for(const width of [320,375,430]){
-     await page.setViewportSize({width,height:740});
-     await assertNoOverflow(page);
-     const ctaHeight=await page.getByRole("link",{name:/Unlock the vault/}).evaluate(el=>el.getBoundingClientRect().height);
-     expect(ctaHeight).toBeGreaterThanOrEqual(44);
-   }
- }
+ await page.emulateMedia({reducedMotion:"no-preference"});
+ await page.goto("/member");
  await page.getByRole("link",{name:/Unlock the vault/}).click();
  await expect(page.locator("#locker-entry-portal")).toBeVisible();
  await expect(page.locator(".locker-entry-skip")).toBeFocused();
@@ -173,15 +155,16 @@ test("member vault dashboard personalizes greeting, remembers opt-in and unlocks
  await page.getByRole("button",{name:"Skip intro"}).click();
  await expect(page).toHaveURL(/\/catalog$/);
  await expect(page.locator("#locker-entry-portal")).toBeHidden();
- await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
- await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
  await page.goto("/member");
  await page.getByRole("link",{name:"Browse without animation"}).click();
  await expect(page).toHaveURL(/\/catalog$/);
  await expect(page.locator("#locker-entry-portal")).toBeHidden();
  await assertNoOverflow(page);
+ await page.getByRole("button",{name:"Log out"}).click();
+ await expect(page).toHaveURL(/\/login$/);
+ await page.goto("/catalog");
+ await expect(page).toHaveURL(/\/login$/);
 });
-
 test("administrator can manage draft products and stock without sales actions",async({page})=>{
  const email=emailFor();
  await register(page,email);
