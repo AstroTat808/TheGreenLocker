@@ -28,13 +28,13 @@ test("one-use verification, recovery, admin MFA, lot tracing, private images, CS
  });
  const root="http://127.0.0.1:"+server.address().port;
  const get=(p,cookie="")=>fetch(root+p,{redirect:"manual",headers:cookie?{Cookie:cookie}:{}});
- const post=(p,body,cookie="")=>fetch(root+p,{method:"POST",redirect:"manual",headers:{"Content-Type":"application/x-www-form-urlencoded",...(cookie?{Cookie:cookie}:{})},body:new URLSearchParams(body)});
+ const post=(p,body,cookie="",origin="")=>fetch(root+p,{method:"POST",redirect:"manual",headers:{"Content-Type":"application/x-www-form-urlencoded",...(cookie?{Cookie:cookie}:{}),...(origin?{Origin:origin}:{})},body:new URLSearchParams(body)});
  const linkToken=(email,type)=>new URL(mail.filter(x=>x.to===email&&x.subject.includes(type)).at(-1).text.match(/https?:\/\/[^\s]+/)[0]).searchParams.get("token");
  let r=await post("/register",{email:"owner@example.com",password:"first-password-more-than-12",invite:"test-invitation-code-longer-than-16"});
  assert.equal(r.status,303);assert.equal(r.headers.get("location"),"/check-email");
  r=await post("/login",{email:"owner@example.com",password:"first-password-more-than-12"});assert.equal(r.status,403);
  const verify=linkToken("owner@example.com","Verify");
- r=await post("/verify-email",{token:verify});assert.equal(r.status,200);
+ r=await post("/verify-email",{token:verify},"","null");assert.equal(r.status,200);
  r=await post("/verify-email",{token:verify});assert.equal(r.status,400);
  r=await post("/login",{email:"owner@example.com",password:"first-password-more-than-12"});assert.equal(r.status,303);
  const cookie=r.headers.get("set-cookie").split(";")[0];
@@ -99,7 +99,7 @@ test("one-use verification, recovery, admin MFA, lot tracing, private images, CS
  r=await post("/forgot-password",{email:"unknown@example.com"});assert.equal(r.status,200);
  r=await post("/forgot-password",{email:"owner@example.com"});assert.equal(r.status,200);
  const reset=linkToken("owner@example.com","Reset");
- r=await post("/reset-password",{token:reset,password:"changed-password-more-than-12"});assert.equal(r.status,200);
+ r=await post("/reset-password",{token:reset,password:"changed-password-more-than-12"},"","null");assert.equal(r.status,200);
  r=await post("/reset-password",{token:reset,password:"another-long-password"});assert.equal(r.status,400);
  r=await get("/admin",cookie);assert.equal(r.status,303,"Reset invalidates all existing sessions.");
  r=await get("/admin",secondCookie);assert.equal(r.status,303);
