@@ -71,19 +71,26 @@ test("invited member can register, log in, and view concept-only catalog",async(
  const skipIntro=page.getByRole("button",{name:"Skip intro"});
  const replayIntro=page.getByRole("button",{name:"Replay vault opening"});
  await expect(portal).toBeVisible();
+ await expect(portal).toHaveAttribute("aria-describedby","locker-entry-instructions");
+ await expect(page.locator(".locker-entry-orbit")).toHaveCount(1);
+ await expect(page.locator(".locker-entry-footer")).toContainText("THE GREEN LOCKER");
  await expect(skipIntro).toBeFocused();
  await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",true);
+ await expect(page.locator("body")).toHaveClass(/locker-entry-active/);
+ expect(await skipIntro.evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
  await page.keyboard.press("Tab");
  await expect(skipIntro).toBeFocused();
  await expect(page.locator(".locker-entry-door-left")).toHaveCSS("animation-name","vault-entry-left");
  await page.keyboard.press("Escape");
  await expect(portal).toBeHidden();
  await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",false);
+ await expect(page.locator("body")).not.toHaveClass(/locker-entry-active/);
  await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeFocused();
  await replayIntro.click();
  await expect(portal).toBeVisible();
  await skipIntro.click();
  await expect(portal).toBeHidden();
+ await expect(replayIntro).toBeFocused(); // Replaying returns keyboard focus to its trigger.
  await page.reload();
  await expect(portal).toBeHidden(); // only once per browser tab
  await page.emulateMedia({reducedMotion:"reduce"});
@@ -92,6 +99,17 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(replayIntro).toBeHidden();
  await expect(page.getByText("Nothing available")).toHaveCount(0);
  await assertNoOverflow(page);
+ if (test.info().project.name === "private-mobile-webkit") {
+   // Guard narrow iPhone SE-sized layouts and wider modern phones.
+   for (const width of [320, 375, 430]) {
+     await page.setViewportSize({width,height:740});
+     await assertNoOverflow(page);
+     const nav = page.locator(".private-header nav");
+     await expect(nav).toHaveCSS("display","grid");
+     const navHeight = await nav.getByRole("link").first().evaluate(el=>el.getBoundingClientRect().height);
+     expect(navHeight).toBeGreaterThanOrEqual(44);
+   }
+ }
  await page.getByRole("button",{name:"Log out"}).click();
  await expect(page).toHaveURL(/\/login$/);
  await page.goto("/catalog");
@@ -151,6 +169,10 @@ test("administrator can manage draft products and stock without sales actions",a
  const botanicalCard=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:botanicalCode,exact:true})});
  await expect(botanicalCard).toBeVisible();
  await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(4);
+ if (test.info().project.name === "private-mobile-webkit") {
+   const heights = await botanicalCard.locator(".locker-tier-face").evaluateAll(elements=>elements.map(el=>el.getBoundingClientRect().height));
+   expect(Math.min(...heights)).toBeGreaterThanOrEqual(156);
+ }
  for (const [index,pkg] of [
    {name:"THE KEY",weight:"1/8 oz"},
    {name:"THE SIGNAL",weight:"1/4 oz"},

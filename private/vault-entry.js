@@ -12,10 +12,12 @@
   if (!portal || !replay || !skip) return;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const key = "tgl:vault-entry:v1";
-  const durationMs = 1950;
+  const key = "tgl:vault-entry:v2"; // Replay the polished sequence once for existing members.
+  const durationMs = 2250; // CSS animation is 2200ms; leave one frame for final paint.
   let active = false;
   let timeout = null;
+  let returnFocus = heading;
+  const inertStates = new Map();
 
   const seen = () => {
     try { return sessionStorage.getItem(key) === "1"; }
@@ -31,16 +33,17 @@
     if (timeout !== null) clearTimeout(timeout);
     timeout = null;
     portal.classList.remove("is-opening");
-    for (const element of background) element.inert = false;
-    const wasFocused = document.activeElement === skip;
-    if (wasFocused) skip.blur();
+    for (const [element, previous] of inertStates) element.inert = previous;
+    inertStates.clear();
+    document.body.classList.remove("locker-entry-active");
+    const wasFocused = portal.contains(document.activeElement) || document.activeElement === document.body;
     portal.hidden = true;
-    if (wasFocused && heading) {
-      heading.setAttribute("tabindex", "-1");
-      heading.focus({ preventScroll: true });
+    if (wasFocused && returnFocus) {
+      if (returnFocus === heading) heading.setAttribute("tabindex", "-1");
+      returnFocus.focus({ preventScroll: true });
     }
   };
-  const begin = () => {
+  const begin = (opener = heading) => {
     if (reducedMotion.matches || document.visibilityState === "hidden") {
       remember();
       finish();
@@ -48,12 +51,18 @@
     }
     if (active) finish();
     active = true;
+    returnFocus = opener;
     remember();
     portal.hidden = false;
     portal.classList.remove("is-opening");
+    for (const element of background) {
+      inertStates.set(element, element.inert);
+      element.inert = true;
+    }
+    document.body.classList.add("locker-entry-active");
+    // Restart the CSS-only seal and door motions on each deliberate replay.
     void portal.offsetWidth;
     portal.classList.add("is-opening");
-    for (const element of background) element.inert = true;
     skip.focus({ preventScroll: true });
     timeout = window.setTimeout(finish, durationMs);
   };
@@ -61,7 +70,7 @@
   if (!reducedMotion.matches && !seen()) begin();
   else remember();
 
-  replay.addEventListener("click", begin);
+  replay.addEventListener("click", () => begin(replay));
   skip.addEventListener("click", finish);
   document.addEventListener("keydown", event => {
     if (!active) return;
@@ -69,6 +78,7 @@
       event.preventDefault();
       finish();
     } else if (event.key === "Tab") {
+      // The dialog has exactly one interactive control until it closes.
       event.preventDefault();
       skip.focus({ preventScroll: true });
     }
