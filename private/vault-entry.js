@@ -72,7 +72,7 @@
     hapticSwitch.addEventListener("change", () => {
       prefs.haptics = hapticSwitch.checked && vibrationSupported;
       save();
-      if (!prefs.haptics && vibrationSupported) navigator.vibrate(0);
+      if (!prefs.haptics && vibrationSupported) { try { navigator.vibrate(0); } catch {} }
     });
   }
   describeSupport();
@@ -86,7 +86,7 @@
       } catch { /* Audio context may have closed. */ }
     }
     activeMaster = null;
-    if (vibrationSupported) navigator.vibrate(0);
+    if (vibrationSupported) { try { navigator.vibrate(0); } catch {} }
   }
 
   // Short bespoke, deliberately quiet mechanical effects. Never called on automatic playback.
