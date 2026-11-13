@@ -60,6 +60,14 @@ test("one-use verification, recovery, admin MFA, lot tracing, private images, CS
  const csv="sku,name,category,supplier\nDEMO-10,Concept Accessory,Lifestyle,Example Internal Supplier\nDEMO-11,Concept Collection,Limited Editions,Example Internal Supplier\n";
  r=await post("/admin/import/products",{csrf,csv},cookie);assert.equal(r.status,303);
  assert.equal(db.prepare("SELECT COUNT(*) n FROM products").get().n,2);
+ const codedCsv="sku,name,category,supplier,codename\nDEMO-10,Concept Accessory,Lifestyle,Example Internal Supplier,Ghost Key\nDEMO-11,Concept Collection,Limited Editions,Example Internal Supplier,Gold Cipher\n";
+ r=await post("/admin/import/products",{csrf,csv:codedCsv},cookie);assert.equal(r.status,303);
+ assert.equal(db.prepare("SELECT codename FROM products WHERE sku='DEMO-10'").get().codename,"Ghost Key");
+ r=await post("/admin/import/products",{csrf,csv},cookie);assert.equal(r.status,303);
+ assert.equal(db.prepare("SELECT codename FROM products WHERE sku='DEMO-10'").get().codename,"Ghost Key","Legacy CSV updates must preserve existing codenames.");
+ const duplicateCode="sku,name,category,supplier,codename\nDEMO-10,Concept Accessory,Lifestyle,Example Internal Supplier,Ghost Key\nDEMO-11,Concept Collection,Limited Editions,Example Internal Supplier,Ghost Key\n";
+ r=await post("/admin/import/products",{csrf,csv:duplicateCode},cookie);assert.equal(r.status,400);
+ assert.equal(db.prepare("SELECT codename FROM products WHERE sku='DEMO-11'").get().codename,"Gold Cipher","Duplicate codename import must roll back atomically.");
  const bad="sku,name,category,supplier\nTEST-2,Test valid,Lifestyle,Example Internal Supplier\nBAD SKU,Invalid product,Lifestyle,Example Internal Supplier\n";
  r=await post("/admin/import/products",{csrf,csv:bad},cookie);assert.equal(r.status,400);
  assert.equal(db.prepare("SELECT COUNT(*) n FROM products").get().n,2,"Invalid CSV import rolls back completely.");
@@ -73,7 +81,7 @@ test("one-use verification, recovery, admin MFA, lot tracing, private images, CS
  assert.equal(db.prepare("SELECT SUM(delta) qty FROM movements WHERE lot_id=?").get(lot.id).qty,22);
  r=await get("/admin/export/products.csv",cookie);assert.equal(r.status,200);
  assert.match(r.headers.get("content-disposition"),/attachment/);
- assert.match(await r.text(),/DEMO-10/);
+ const exportedCatalog=await r.text();assert.match(exportedCatalog,/DEMO-10/);assert.match(exportedCatalog,/codename/);assert.match(exportedCatalog,/Ghost Key/);
  r=await get("/admin/export/lots.csv",cookie);assert.equal(r.status,200);
  assert.match(await r.text(),/LOT-001/);
  const product=db.prepare("SELECT id FROM products WHERE sku='DEMO-10'").get();
