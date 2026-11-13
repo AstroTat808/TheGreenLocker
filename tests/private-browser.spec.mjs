@@ -72,11 +72,13 @@ test("invited member can register, log in, and view concept-only catalog",async(
  const replayIntro=page.getByRole("button",{name:"Replay vault opening"});
  await expect(portal).toBeVisible();
  await expect(skipIntro).toBeFocused();
+ await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",true);
  await page.keyboard.press("Tab");
  await expect(skipIntro).toBeFocused();
  await expect(page.locator(".locker-entry-door-left")).toHaveCSS("animation-name","vault-entry-left");
  await page.keyboard.press("Escape");
  await expect(portal).toBeHidden();
+ await expect(page.locator(".catalog-grid")).toHaveJSProperty("inert",false);
  await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeFocused();
  await replayIntro.click();
  await expect(portal).toBeVisible();
