@@ -4,11 +4,11 @@
  * No availability, sale, inventory allocations, prices or order endpoints.
  */
 export const LOCKER_TIERS = Object.freeze([
-  Object.freeze({tier:"xs", eighthOunces:1, label:"XS", display:"1/8 oz", notes:"Draft concept"}),
-  Object.freeze({tier:"s", eighthOunces:2, label:"S", display:"1/4 oz", notes:"Draft concept"}),
-  Object.freeze({tier:"m", eighthOunces:4, label:"M", display:"1/2 oz", notes:"Draft concept"}),
-  Object.freeze({tier:"l", eighthOunces:8, label:"L", display:"1 oz", notes:"Draft concept"}),
-  Object.freeze({tier:"xl", eighthOunces:32, label:"XL", display:"1/4 lb · 4 oz", notes:"Subject to applicable limits"})
+  Object.freeze({tier:"xs", eighthOunces:1, label:"THE KEY", display:"1/8 oz", notes:"Private draft", internalOnly:false}),
+  Object.freeze({tier:"s", eighthOunces:2, label:"THE SIGNAL", display:"1/4 oz", notes:"Private draft", internalOnly:false}),
+  Object.freeze({tier:"m", eighthOunces:4, label:"THE CIPHER", display:"1/2 oz", notes:"Private draft", internalOnly:false}),
+  Object.freeze({tier:"l", eighthOunces:8, label:"THE VAULT", display:"1 oz", notes:"Private draft", internalOnly:false}),
+  Object.freeze({tier:"xl", eighthOunces:32, label:"THE ARCHIVE", display:"1/4 lb · 4 oz", notes:"Internal planning only", internalOnly:true})
 ]);
 
 export const LOCKER_FILE_NAMES = Object.freeze([
@@ -104,15 +104,23 @@ export function renderLockerSizeChoices(db,product) {
   if(product.category!=="Botanicals")return "";
   const variants=db.prepare("SELECT tier,weight_eighth_oz FROM product_size_variants WHERE product_id=? AND status='draft'").all(product.id);
   const present=new Map(variants.map(item=>[item.tier,item.weight_eighth_oz]));
-  const visible=LOCKER_TIERS.filter(item=>present.get(item.tier)===item.eighthOunces);
+  const visible=LOCKER_TIERS.filter(item=>!item.internalOnly && present.get(item.tier)===item.eighthOunces);
   if(!visible.length)return "";
   const cards=visible.map((item,i)=>
     '<label class="locker-tier'+(item.tier==="xl"?' locker-tier-limit':"")+'">'+
     '<input type="radio" name="locker-tier-'+Number(product.id)+'" value="'+item.tier+'" '+(i===0?"checked":"")+' aria-label="'+item.label+', '+html(item.display)+' — '+html(item.notes)+'">'+
     '<span class="locker-tier-face"><strong>'+item.label+'</strong><span>'+html(item.display)+'</span><small>'+html(item.notes)+'</small></span></label>'
   ).join("");
-  return '<fieldset class="locker-tier-choices"><legend>LOCKER FORMATS <span>· preview only</span></legend>'+
+  return '<fieldset class="locker-tier-choices"><legend>CHOOSE YOUR PACKAGE <span>· concept preview</span></legend>'+
     '<div class="locker-tier-grid">'+cards+'</div>'+
-    '<p class="locker-tier-note">Format selection is a visual concept only. No pricing, reservation, ordering or sale is available. Legal limits and licensing apply.</p>'+
+    '<p class="locker-tier-note">Package names are branding concepts. Exact weights are always shown. No prices, reservations, orders or sales are enabled.</p>'+
     '</fieldset>';
+}
+
+/** Display internal-only references strictly on the administrator dashboard. */
+export function renderInternalLockerPackage() {
+  const item=LOCKER_TIERS.find(tier=>tier.internalOnly);
+  return '<section class="private-panel locker-internal-package"><h2>Internal package reference</h2>'+
+    '<p><strong>'+html(item.label)+'</strong> · '+html(item.display)+'</p>'+
+    '<p>Internal inventory planning only. Not visible as a member package choice and not available for ordering or sale.</p></section>';
 }
