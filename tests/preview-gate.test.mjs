@@ -14,9 +14,13 @@ test("cloud preview gate blocks anonymous requests and wrong passwords before ap
   server.listen(0,"127.0.0.1"); await once(server,"listening");
   const origin="http://127.0.0.1:"+server.address().port;
   let res=await fetch(origin+"/healthz");assert.equal(res.status,200);
+  assert.equal(res.headers.get("strict-transport-security"),"max-age=31536000");
+  assert.equal(res.headers.get("x-robots-tag"),"noindex, nofollow");
   res=await fetch(origin+"/");assert.equal(res.status,401);
   assert.match(res.headers.get("www-authenticate"),/Basic/);
   assert.equal(res.headers.get("x-robots-tag"),"noindex, nofollow");
+  assert.equal(res.headers.get("x-frame-options"),"DENY");
+  assert.equal(res.headers.get("strict-transport-security"),"max-age=31536000");
   res=await fetch(origin+"/catalog",{headers:{authorization:"Basic "+Buffer.from("private-preview:wrong-password").toString("base64")}});
   assert.equal(res.status,401);
   res=await fetch(origin+"/catalog",{headers:{authorization:"Basic "+Buffer.from("private-preview:"+process.env.TGL_PREVIEW_GATE_PASSWORD).toString("base64")}});
