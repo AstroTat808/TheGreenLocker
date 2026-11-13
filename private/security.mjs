@@ -132,7 +132,7 @@ export function createSecurity({db,dbPath,origin,mailSender,respond,redirect,for
   }catch(e){db.exec("ROLLBACK");throw e;}
  }
  function response(res,title,content,code=200){
-   return respond(res,code,layout(title,header(title,content)), "text/html; charset=utf-8",{"Referrer-Policy":"no-referrer"});
+   return respond(res,code,layout(title,header(title,content)), "text/html; charset=utf-8",{"Referrer-Policy":"origin"});
  }
  const basicForm=(action,fields,button)=>'<form action="'+action+'" method="post">'+fields+'<button class="private-button" type="submit">'+button+'</button></form>';
  async function publicRoutes({req,res,url,pathname,method}){
