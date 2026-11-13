@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   walletConfigured,walletPassJson,zipPassFiles,signedWalletPass,PASS_MIME
 } from "../private/wallet-pass.mjs";
@@ -62,4 +66,64 @@ test("pass archive has valid STORE ZIP entries without third-party ZIP library",
    offset+=30+nameLength+bodyLength;
  }
  assert.deepEqual(names,["pass.json","manifest.json","signature"]);
+});
+
+
+test("real OpenSSL detached signature wraps a complete generic pass archive",t=>{
+ // Ephemeral self-signed TEST material never stored, deployed or used as Apple credentials.
+ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"tgl-wallet-ci-"));
+ t.after(()=>fs.rmSync(tmp,{recursive:true,force:true}));
+ const key=path.join(tmp,"test.key");
+ const cert=path.join(tmp,"test.crt");
+ execFileSync("openssl",[
+   "req","-x509","-newkey","rsa:2048","-nodes",
+   "-keyout",key,"-out",cert,"-days","1",
+   "-subj","/UID=pass.com.thegreenlocker.member/OU=A1B2C3D4E5/O=Test Issuer/C=US"
+ ],{timeout:15000,stdio:["ignore","ignore","pipe"]});
+ const signingEnv={
+   ...env,
+   TGL_WALLET_SIGNER_CERT_B64:fs.readFileSync(cert).toString("base64"),
+   TGL_WALLET_PRIVATE_KEY_B64:fs.readFileSync(key).toString("base64"),
+   TGL_WALLET_WWDR_CERT_B64:fs.readFileSync(cert).toString("base64")
+ };
+ assert.equal(walletConfigured(signingEnv),true);
+ // A valid minimal test PNG (real pass uses official Green Locker PNG).
+ const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==","base64");
+ const zip=signedWalletPass({
+   memberCode,displayName:"Member Test",cardTheme:"gilded",
+   cardTitle:"The Collector",cardMotto:"Make it yours.",iconPng:png,env:signingEnv
+ });
+ const extracted={};
+ let pos=0;
+ while(pos+30<zip.length && zip.readUInt32LE(pos)===0x04034b50){
+   const method=zip.readUInt16LE(pos+8);
+   const size=zip.readUInt32LE(pos+18);
+   const nameLength=zip.readUInt16LE(pos+26);
+   const extraLength=zip.readUInt16LE(pos+28);
+   assert.equal(method,0);
+   const filename=zip.subarray(pos+30,pos+30+nameLength).toString();
+   const from=pos+30+nameLength+extraLength;
+   extracted[filename]=zip.subarray(from,from+size);
+   pos=from+size;
+ }
+ assert.deepEqual(Object.keys(extracted),[
+   "pass.json","icon.png","icon@2x.png","logo.png","logo@2x.png",
+   "manifest.json","signature"
+ ]);
+ const json=JSON.parse(extracted["pass.json"]);
+ assert.equal(json.serialNumber,memberCode);
+ assert.equal(json.generic.auxiliaryFields[0].value,"The Collector");
+ const manifest=JSON.parse(extracted["manifest.json"]);
+ for(const [filename,digest] of Object.entries(manifest))
+   assert.equal(createHash("sha1").update(extracted[filename]).digest("hex"),digest);
+ const sig=path.join(tmp,"signature.der");
+ const content=path.join(tmp,"manifest.json");
+ fs.writeFileSync(sig,extracted.signature);
+ fs.writeFileSync(content,extracted["manifest.json"]);
+ const verify=execFileSync("openssl",[
+   "smime","-verify","-inform","DER","-in",sig,
+   "-content",content,"-noverify","-out",path.join(tmp,"verified.json")
+ ],{timeout:8000,stdio:["ignore","pipe","pipe"]});
+ assert.ok(Buffer.isBuffer(verify));
+ assert.deepEqual(fs.readFileSync(path.join(tmp,"verified.json")),extracted["manifest.json"]);
 });
