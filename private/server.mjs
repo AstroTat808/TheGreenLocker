@@ -7,6 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
 import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
 import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
+import { walletConfigured, signedWalletPass, PASS_MIME } from "./wallet-pass.mjs";
 import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
@@ -51,6 +52,14 @@ export function openDb(dbPath) {
  if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT;");
  if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "member_code")) db.exec("ALTER TABLE users ADD COLUMN member_code TEXT;");
  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_member_code ON users(member_code) WHERE member_code IS NOT NULL;");
+ for (const [column,ddl] of [
+   ["card_theme","TEXT NOT NULL DEFAULT 'emerald'"],
+   ["card_title","TEXT NOT NULL DEFAULT 'Private Member'"],
+   ["card_motto","TEXT NOT NULL DEFAULT ''"]
+ ]) {
+   if (!db.prepare("PRAGMA table_info(users)").all().some(c=>c.name===column))
+     db.exec("ALTER TABLE users ADD COLUMN "+column+" "+ddl+";");
+ }
  db.exec("CREATE TABLE IF NOT EXISTS sessions (id_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf TEXT NOT NULL, expires_at INTEGER NOT NULL);");
  db.exec("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft' CHECK(status='draft'), created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
@@ -107,7 +116,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
    const token = cookies(req).tgl_session;
-   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
+   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.card_theme,u.card_title,u.card_motto,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
    const user = session && session.expires_at > now() ? session : null;
    if (method === "GET" && pathname === "/login") return user ? redirect(res,user.role === "admin" ? "/admin" : "/member") : respond(res,200,authPage(false));
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
@@ -150,17 +159,54 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/member") {
      const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
      const memberCode = ensureMemberCode(db,user.id);
-     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,saved:url.searchParams.get("saved")==="1"}));
+     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,walletReady:walletConfigured(),saved:url.searchParams.get("saved")==="1",cardSaved:url.searchParams.get("card_saved")==="1"}));
    }
    if (method === "GET" && pathname === "/member/card.svg") {
      const memberCode = ensureMemberCode(db,user.id);
      const logoBase64 = fs.readFileSync(path.join(root,"assets/shield-logo.webp")).toString("base64");
-     const svg = renderMemberCardSvg({displayName:friendlyName(user),memberCode,logoBase64});
+     const svg = renderMemberCardSvg({displayName:friendlyName(user),memberCode,logoBase64,cardTheme:user.card_theme,cardTitle:user.card_title,cardMotto:user.card_motto});
      return respond(res,200,svg,"image/svg+xml; charset=utf-8",{
        "Content-Disposition":'attachment; filename="the-green-locker-member-card.svg"',
        "Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox",
        "X-Content-Type-Options":"nosniff"
      });
+   }
+   if (method === "GET" && pathname === "/member/wallet.pkpass") {
+     if (!walletConfigured()) return respond(res,503,
+       "Apple Wallet signing is not yet configured. Download the SVG preview instead.",
+       "text/plain; charset=utf-8");
+     const memberCode = ensureMemberCode(db,user.id);
+     const iconPng=fs.readFileSync(path.join(root,"assets/shield-favicon.png"));
+     try {
+       const pass=signedWalletPass({
+         memberCode,displayName:friendlyName(user),
+         cardTheme:user.card_theme,cardTitle:user.card_title,cardMotto:user.card_motto,
+         iconPng
+       });
+       return respond(res,200,pass,PASS_MIME,{
+         "Content-Disposition":'attachment; filename="the-green-locker-member.pkpass"',
+         "X-Content-Type-Options":"nosniff"
+       });
+     } catch(error) {
+       // Never leak certificate paths, PEM secrets, OpenSSL arguments or signing details.
+       console.error("Wallet pass signing failed:",error?.name||"SigningError");
+       return respond(res,503,"The signed Wallet pass could not be issued.","text/plain; charset=utf-8");
+     }
+   }
+   if (method === "POST" && pathname === "/member/card/preferences") {
+     const params=await formBody(req);
+     if(!safeCompare(bodyValue(params,"csrf"),user.csrf))
+       return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+     const cardTheme=bodyValue(params,"card_theme");
+     const cardTitle=bodyValue(params,"card_title");
+     const cardMotto=bodyValue(params,"card_motto").trim().replace(/\s+/gu," ");
+     if(!["emerald","obsidian","gilded"].includes(cardTheme) ||
+        !["Private Member","Vault Explorer","The Collector"].includes(cardTitle) ||
+        [...cardMotto].length>70 || /[<>\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(cardMotto))
+       return respond(res,400,"Invalid card personalization","text/plain; charset=utf-8");
+     db.prepare("UPDATE users SET card_theme=?,card_title=?,card_motto=? WHERE id=?")
+       .run(cardTheme,cardTitle,cardMotto,user.id);
+     return redirect(res,"/member?card_saved=1#member-card");
    }
    if (method === "POST" && pathname === "/member/profile") {
      const params = await formBody(req);
@@ -176,7 +222,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
-   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/member-compartments") ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/catalog") return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db));
