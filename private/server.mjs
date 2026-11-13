@@ -290,7 +290,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/") {
      let html = fs.readFileSync(path.join(root,"index.html"),"utf8");
      html = html.replace("</head>",'<link rel="stylesheet" href="/private.css"></head>');
-     html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
+     html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + link("/shop","Collections preview") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
    if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
