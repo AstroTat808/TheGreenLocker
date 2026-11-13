@@ -4,13 +4,14 @@
   "version": "0.1.0",
   "description": "Development-only brand concept; no orders or checkout.",
   "scripts": {
-    "check": "node --check app.js && node scripts/check-static-site.mjs",
+    "check": "node --check app.js && node scripts/check-static-site.mjs && npm run check:backend",
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
     "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs",
     "test:browser": "playwright test",
     "test:private:browser": "playwright test --config=playwright.private.config.mjs",
-    "staging:preflight": "node scripts/staging-preflight.mjs"
+    "staging:preflight": "node scripts/staging-preflight.mjs",
+    "check:backend": "node --check private/server.mjs && node --check private/security.mjs && node --check private/inventory.mjs && node --check private/inventory-client.js && node --check scripts/staging-preflight.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
