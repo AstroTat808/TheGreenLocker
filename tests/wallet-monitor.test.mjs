@@ -56,7 +56,7 @@ test("Wallet Operations on an unconfigured instance shows accurate zero metrics 
    assert.ok(snap.certificates.every(x=>x.state==="missing"));
    const html=renderWalletOperationsPage(snap,{user:{role:"admin",csrf:"fake-csrf"},csrf:"fake-csrf",
      layout:(_title,body)=>body});
-   assert.match(html,/Wallet Operations/);
+   assert.match(html,/<h1>Wallet <em>Operations\.<\/em><\/h1>/);
    assert.match(html,/Apple Wallet signing is not configured/);
    assert.match(html,/No Wallet device registrations yet/);
    assert.match(html,/No update notifications have been queued/);
