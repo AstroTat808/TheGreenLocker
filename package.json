@@ -7,9 +7,10 @@
     "check": "node --check app.js && node scripts/check-static-site.mjs",
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
-    "test:private": "node --test tests/private-server.test.mjs",
+    "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs",
     "test:browser": "playwright test",
-    "test:private:browser": "playwright test --config=playwright.private.config.mjs"
+    "test:private:browser": "playwright test --config=playwright.private.config.mjs",
+    "staging:preflight": "node scripts/staging-preflight.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
