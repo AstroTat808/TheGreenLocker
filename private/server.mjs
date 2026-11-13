@@ -6,7 +6,7 @@ import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypt
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
 import { createInventory } from "./inventory.mjs";
-import { installLockerFiles, renderLockerSizeChoices, validLockerCodename } from "./locker-files.mjs";
+import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const MS8H = 8 * 60 * 60 * 1000;
@@ -157,7 +157,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        const products = listProducts(db);
        const movements = db.prepare("SELECT m.*,p.sku,u.email actor_email FROM movements m JOIN products p ON p.id=m.product_id JOIN users u ON u.id=m.actor_id ORDER BY m.id DESC LIMIT 30").all();
        const usersCount = db.prepare("SELECT COUNT(*) count FROM users").get().count;
-       return respond(res,200,adminPage(products,movements,usersCount,user,user.csrf,url.searchParams.get("notice") || "",inventory.adminPanel(user.csrf),inventory.categoryOptions()));
+       return respond(res,200,adminPage(products,movements,usersCount,user,user.csrf,url.searchParams.get("notice") || "",inventory.adminPanel(user.csrf)+renderInternalLockerPackage(),inventory.categoryOptions()));
      }
      if (method === "POST" && ["/admin/products","/admin/products/codename","/admin/stock"].includes(pathname)) {
        const p = await formBody(req);
