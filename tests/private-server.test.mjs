@@ -292,7 +292,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(response.status,400);
  assert.equal(db.prepare("SELECT SUM(delta) total FROM movements WHERE product_id=?").get(id).total,10);
  response=await req("/catalog",{headers:{Cookie:cookie}});html=await response.text();
- assert.match(html,/Development Item/);assert.match(html,/Ghost Key/);assert.doesNotMatch(html,/buy now|checkout|purchase now/i);
+ assert.match(html,/Development Item/);assert.match(html,/Ghost Key/);assert.doesNotMatch(html,/<form[^>]+action="\/(?:checkout|cart|order)|href="\/(?:checkout|cart|order)|data-add-to-cart/i);
  response=await post("/admin/products/codename",{csrf,product_id:String(id),codename:"Eclipse"},cookie);
  assert.equal(response.status,303);
  assert.equal(db.prepare("SELECT codename FROM products WHERE id=?").get(id).codename,"Eclipse");
