@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { createSecurity } from "./security.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const MS8H = 8 * 60 * 60 * 1000;
@@ -73,9 +74,10 @@ async function formBody(request) {
 }
 const bodyValue = (params, name) => String(params.get(name) ?? "").trim();
 const queryString = url => new URL(url, "http://localhost");
-export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = process.env.TGL_DB_PATH || path.join(root,"data","private.sqlite") } = {}) {
+export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = process.env.TGL_DB_PATH || path.join(root,"data","private.sqlite"), mailSender, publicOrigin = process.env.TGL_PUBLIC_ORIGIN || "http://127.0.0.1:4174" } = {}) {
  if (!inviteCode || inviteCode.length < 16) throw new Error("Set a unique TGL_INVITE_CODE with at least 16 characters.");
  const db = openDb(dbPath);
+ const security = createSecurity({db,dbPath,origin:publicOrigin,mailSender,respond,redirect,formBody,layout,csrfField});
  const server = http.createServer(async (req,res) => {
   try {
    const url = queryString(req.url);
@@ -85,7 +87,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
    const token = cookies(req).tgl_session;
-   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,u.id,u.email,u.role FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
+   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
    const user = session && session.expires_at > now() ? session : null;
    if (method === "GET" && pathname === "/login") return user ? redirect(res,"/") : respond(res,200,authPage(false));
    if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
@@ -95,6 +97,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      try { originHost = new URL(req.headers.origin).host; } catch { return respond(res,403,"Invalid request origin","text/plain; charset=utf-8"); }
      if (originHost !== host) return respond(res,403,"Origin mismatch","text/plain; charset=utf-8");
    }
+   if (await security.publicRoutes({req,res,url,pathname,method})) return;
    if (method === "POST" && (pathname === "/login" || pathname === "/register")) {
      if (blocked(req.socket.remoteAddress || "unknown",pathname,pathname === "/register" ? 5 : 10)) return respond(res,429,authPage(pathname==="/register","Too many attempts; retry later."));
      const p = await formBody(req);
@@ -105,17 +108,21 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        if (db.prepare("SELECT id FROM users WHERE email=?").get(email)) return respond(res,400,authPage(true,"Registration could not be completed."));
        const salt = randomBytes(16).toString("hex");
        db.prepare("INSERT INTO users(email,salt,password_hash) VALUES(?,?,?)").run(email,salt,passHash(password,salt));
-       return redirect(res,"/login?registered=1");
+       await security.issue(email,"verify");
+       return redirect(res,"/check-email");
      }
      const userRow = validEmail(email) && db.prepare("SELECT * FROM users WHERE email=?").get(email);
      const actualHash = userRow ? passHash(password,userRow.salt) : passHash(password,"00000000000000000000000000000000");
      const expected = userRow ? userRow.password_hash : "0".repeat(128);
      if (!userRow || !safeCompare(actualHash,expected)) return respond(res,401,authPage(false,"Incorrect email or password."));
+     if (userRow.email_verified_at === null) return respond(res,403,authPage(false,"Confirm your email address before signing in."));
      const newToken = random();
      db.prepare("INSERT INTO sessions(id_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)").run(hash(newToken),userRow.id,random(),now()+MS8H);
-     return redirect(res,"/",{"Set-Cookie":sessionCookie(newToken)});
+     return redirect(res,userRow.role === "admin" ? "/admin/mfa" : "/",{"Set-Cookie":sessionCookie(newToken)});
    }
    if (!user) return method==="GET" ? redirect(res,"/login") : respond(res,401,"Authentication required","text/plain; charset=utf-8");
+   if (await security.mfaRoutes({req,res,user,pathname,method})) return;
+   if (user.role === "admin" && !user.mfa_verified_at && pathname !== "/logout") return method==="GET" ? redirect(res,"/admin/mfa") : respond(res,403,"Administrator two-factor authentication required","text/plain; charset=utf-8");
    if (method === "GET" && pathname === "/") {
      let html = fs.readFileSync(path.join(root,"index.html"),"utf8");
      html = html.replace("</head>",'<link rel="stylesheet" href="/private.css"></head>');
