@@ -126,16 +126,24 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.goto("/catalog");
  const botanicalCard=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:botanicalCode,exact:true})});
  await expect(botanicalCard).toBeVisible();
- await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(5);
- for (const [index,format] of ["1/8 oz","1/4 oz","1/2 oz","1 oz","1/4 lb"].entries()) {
-   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(format);
+ await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(4);
+ for (const [index,pkg] of [
+   {name:"THE KEY",weight:"1/8 oz"},
+   {name:"THE SIGNAL",weight:"1/4 oz"},
+   {name:"THE CIPHER",weight:"1/2 oz"},
+   {name:"THE VAULT",weight:"1 oz"}
+ ].entries()) {
+   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(pkg.name);
+   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(pkg.weight);
  }
- await expect(botanicalCard.locator('.locker-tier-face').nth(4)).toContainText("4 oz");
- await expect(botanicalCard.locator('.locker-tier-face').nth(4)).toContainText("Subject to applicable limits");
+ await expect(botanicalCard.getByText(/THE ARCHIVE|1\/4 lb|16 oz/i)).toHaveCount(0);
  await botanicalCard.locator(".locker-tier").nth(2).click();
  await expect(botanicalCard.locator('input[value="m"]')).toBeChecked();
- await expect(botanicalCard.getByText("16 oz")).toHaveCount(0);
  await expect(page.getByRole("button",{name:/buy|checkout|order|reserve/i})).toHaveCount(0);
+ await assertNoOverflow(page);
+ await page.goto("/admin");
+ await expect(page.locator(".locker-internal-package")).toContainText("THE ARCHIVE");
+ await expect(page.locator(".locker-internal-package")).toContainText("1/4 lb");
  await assertNoOverflow(page);
 
 });
