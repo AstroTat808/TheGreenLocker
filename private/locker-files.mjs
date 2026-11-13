@@ -107,13 +107,17 @@ export function renderLockerSizeChoices(db,product) {
   const visible=LOCKER_TIERS.filter(item=>!item.internalOnly && present.get(item.tier)===item.eighthOunces);
   if(!visible.length)return "";
   const cards=visible.map((item,i)=>
-    '<label class="locker-tier'+(item.tier==="xl"?' locker-tier-limit':"")+'">'+
-    '<input type="radio" name="locker-tier-'+Number(product.id)+'" value="'+item.tier+'" '+(i===0?"checked":"")+' aria-label="'+item.label+', '+html(item.display)+' — '+html(item.notes)+'">'+
-    '<span class="locker-tier-face"><strong>'+item.label+'</strong><span>'+html(item.display)+'</span><small>'+html(item.notes)+'</small></span></label>'
+    '<label class="locker-tier">'+
+    '<input type="radio" name="locker-tier-'+Number(product.id)+'" value="'+item.tier+'" data-package-name="'+html(item.label)+'" data-weight="'+html(item.display)+'" '+(i===0?"checked ":"")+'aria-label="'+html(item.label)+', '+html(item.display)+' — '+html(item.notes)+'">'+
+    '<span class="locker-tier-face"><strong class="locker-tier-name">'+html(item.label)+'</strong>'+
+    '<span class="locker-vault" aria-hidden="true"><span class="locker-vault-rotor"><span class="locker-vault-glyph">✦</span></span></span>'+
+    '<span class="locker-tier-weight">'+html(item.display)+'</span><small>'+html(item.notes)+'</small>'+
+    '<span class="locker-vault-flare" aria-hidden="true"></span></span></label>'
   ).join("");
   return '<fieldset class="locker-tier-choices"><legend>CHOOSE YOUR PACKAGE <span>· concept preview</span></legend>'+
     '<div class="locker-tier-grid">'+cards+'</div>'+
-    '<p class="locker-tier-note">Package names are branding concepts. Exact weights are always shown. No prices, reservations, orders or sales are enabled.</p>'+
+    '<p class="locker-tier-status" role="status" aria-live="polite">'+html(visible[0].label)+' · '+html(visible[0].display)+' · Preview only · No sales</p>'+
+    '<p class="locker-tier-note">Gold-lit vault effect is decorative. Package names are concepts; exact weights are shown. No prices, reservations, orders or sales are enabled.</p>'+
     '</fieldset>';
 }
 
