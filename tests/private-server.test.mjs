@@ -125,6 +125,55 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.doesNotMatch(memberMarkup,/add to cart|checkout|purchase now/i);
  const profileCsrf=memberMarkup.match(/name="csrf" value="([^"]+)"/)?.[1];
  assert.ok(profileCsrf);
+ response=await req("/member/wallet.pkpass");
+ assert.equal(response.status,303,"Wallet issue endpoint requires a login.");
+ response=await req("/member/wallet.pkpass",{headers:{Cookie:cookie}});
+ assert.equal(response.status,503,"Never issue unsigned .pkpass files without Apple credentials.");
+ assert.match(await response.text(),/signing is not yet configured/);
+ response=await req("/member-card-ui.js");
+ assert.equal(response.status,303,"Flip controller requires authentication.");
+ response=await req("/member-card-ui.js",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(await response.text(),/prefers-reduced-motion/);
+ response=await post("/member/card/preferences",
+   {csrf:"wrong",card_theme:"obsidian",card_title:"Vault Explorer",card_motto:"Private motto"},cookie);
+ assert.equal(response.status,403,"Card edits enforce CSRF.");
+ response=await post("/member/card/preferences",
+   {csrf:profileCsrf,card_theme:"invalid",card_title:"Vault Explorer",card_motto:"Private motto"},cookie);
+ assert.equal(response.status,400,"Card finish must be allowlisted.");
+ response=await post("/member/card/preferences",
+   {csrf:profileCsrf,card_theme:"gilded",card_title:"Executive",card_motto:"Private motto"},cookie);
+ assert.equal(response.status,400,"Decorative card titles cannot impersonate credentials.");
+ response=await post("/member/card/preferences",
+   {csrf:profileCsrf,card_theme:"gilded",card_title:"The Collector",card_motto:"<script>alert(1)</script>"},cookie);
+ assert.equal(response.status,400,"Unsafe card markup is rejected.");
+ response=await post("/member/card/preferences",
+   {csrf:profileCsrf,card_theme:"gilded",card_title:"The Collector",card_motto:"A".repeat(71)},cookie);
+ assert.equal(response.status,400,"Mottos are limited.");
+ response=await post("/member/card/preferences",
+   {csrf:profileCsrf,card_theme:"gilded",card_title:"The Collector",card_motto:"  Stay   curious.  "},cookie);
+ assert.equal(response.status,303);
+ assert.equal(response.headers.get("location"),"/member?card_saved=1#member-card");
+ const custom=db.prepare("SELECT card_theme,card_title,card_motto,member_code FROM users WHERE email=?")
+   .get("member@example.com");
+ assert.equal(custom.card_theme,"gilded");
+ assert.equal(custom.card_title,"The Collector");
+ assert.equal(custom.card_motto,"Stay curious.");
+ assert.equal(custom.member_code,membershipCode);
+ response=await req("/member?card_saved=1",{headers:{Cookie:cookie}});
+ memberMarkup=await response.text();
+ assert.match(memberMarkup,/data-card-theme="gilded"/);
+ assert.match(memberMarkup,/The Collector/);
+ assert.match(memberMarkup,/Stay curious\./);
+ assert.match(memberMarkup,/Your card design was saved/);
+ assert.doesNotMatch(memberMarkup,/Add to Apple Wallet/,
+   "Do not advertise a working signed pass without Apple-issued signing keys.");
+ response=await req("/member/card.svg",{headers:{Cookie:cookie}});
+ const themedSvg=await response.text();
+ assert.match(themedSvg,/The Collector/);
+ assert.match(themedSvg,/Stay curious\./);
+ assert.match(themedSvg,/#[0-9a-f]+/);
+
  response=await post("/member/profile",{csrf:"incorrect",display_name:"Christopher"},cookie);
  assert.equal(response.status,403,"Profile updates require the session CSRF token.");
  response=await post("/member/profile",{csrf:profileCsrf,display_name:"<script>alert(1)</script>"},cookie);
