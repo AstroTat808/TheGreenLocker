@@ -193,12 +193,14 @@ sender and destination mailbox are ready:
 |---|---|
 | `TGL_WALLET_ALERTS_ENABLED` | Set to `1` to activate recurring email checks |
 | `TGL_WALLET_ALERT_EMAIL` | Operations recipient mailbox |
-| `TGL_MAIL_MODE` | Must be `resend` |
+| `TGL_MAIL_MODE` | Not required for Wallet certificate alerts; the private workshop may keep its local account-email outbox. |
 | `TGL_RESEND_API_KEY` | Existing private transactional mail credential |
 | `TGL_EMAIL_FROM` | Verified transactional sender |
 
 Use Railway sealed variables for secrets; no credentials should appear
 in browser markup, GitHub Actions outputs or chat messages.
+
+Certificate-alert emails use the verified Resend sender separately and only when explicitly enabled. The workshop's development account-email outbox remains unchanged.
 
 The certificate watcher cannot operate while the app is shut down; a
 separate external scheduled health monitor can be added later for alerts
