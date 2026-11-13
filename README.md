@@ -15,15 +15,16 @@ Use `npm run start:private` with `TGL_INVITE_CODE` configured for real server-en
 - Responsive, dependency-free static homepage (`index.html`, `styles.css`, `app.js`)
 - Accessible mobile menu and cosmetic 21+ **preview acknowledgement** (not a legally sufficient age-verification system)
 - Four **concept-only** collection cards, brand story, and coming-soon messaging
-- Approved-logo PNG export (`assets/approved-logo.png`) displayed in the site
-- Optional simplified editable illustration (`assets/logo.svg`) for future vector design work
+- Approved shield-crest WebP (`assets/shield-logo.webp`) displayed throughout the public prototype and authenticated preview
+- Matching compact shield favicon (`assets/shield-favicon.png`) for browser tabs and app branding
+- Four cinematic vault package selectors with explicit reference weights, keyboard support and reduced-motion support; visual-only, no ordering
 - The root HTML remains a visual homepage; the optional private Node server has **draft-only** product and inventory tooling. No payments, orders, checkout, shipping, or commercial claims exist
 
 ## Important: logo source-of-truth
 
-The **approved brand logo** is the circular ornate gold-and-green locker emblem selected by the owner. `assets/approved-logo.png` is the faithful raster export used on this site; it was extracted from the previously produced embedded-artwork SVG. The separate `assets/logo.svg` is an **editable simplified recreation**, not a pixel-perfect vector conversion.
+The current official logo is the **emerald and gold shield/vault-door crest** selected by the owner. `assets/shield-logo.webp` is an optimized, faithful raster rendition of the uploaded artwork; `assets/shield-favicon.png` is a small rendition of that same crest. This replaces the older circular locker mark and simplified vector recreation. The uploaded image is not an editable vector master; do not claim an exact SVG reconstruction.
 
-Before launch, review the logo on both light and dark backgrounds and optimize image delivery. For high-resolution print masters, use the previously delivered standalone brand kit. Do not replace the primary emblem with the simplified SVG without owner approval.
+The **Locker Files** package selector offers The Key (1/8 oz), The Signal (1/4 oz), The Cipher (1/2 oz), and The Vault (1 oz), all as visual preview concepts. Its gold rotating vault animation is decorative, follows `prefers-reduced-motion`, and performs no network requests, checkout, stock reservation or sales action. The Archive (4 oz) remains administrator-only.
 
 ## Local preview
 

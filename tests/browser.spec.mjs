@@ -23,6 +23,8 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
   page.on("pageerror", err => pageErrors.push(err.message));
   await page.goto("/?preview=1");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.locator("img.hero-logo")).toHaveAttribute("src","assets/shield-logo.webp");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href","assets/shield-favicon.png");
   const toggle = page.locator("#navToggle");
   if (await toggle.isVisible()) {
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
