@@ -22,3 +22,5 @@ jobs:
         run: npm run test:private
       - name: Validate isolated staging fail-closed configuration
         run: npm run test:staging
+      - name: Validate Workshop live preview and private demo login
+        run: npm run test:workshop
