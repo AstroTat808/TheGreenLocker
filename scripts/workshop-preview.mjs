@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomBytes, scryptSync } from "node:crypto";
 import { createApp } from "../private/server.mjs";
+import { LOCKER_FILE_NAMES } from "../private/locker-files.mjs";
 import { enforcePreviewGate } from "./preview-gate.mjs";
 
 if (process.env.NODE_ENV === "production" || ["staging","production"].includes(process.env.TGL_ENV)) {
@@ -77,6 +78,14 @@ try {
      db.prepare("INSERT INTO movements(product_id,lot_id,delta,reason,actor_id) VALUES(?,?,?,?,?)")
       .run(productId,lotId,sample.count,"Workshop demo fixture",adminId);
    }
+ }
+ // The twelve numbered Locker Files are non-stocked concept entries only.
+ // Existing fixture products and real administrator edits remain untouched.
+ for(let index=0;index<LOCKER_FILE_NAMES.length;index++){
+   const sku="GL-"+String(index+1).padStart(3,"0");
+   const codename=LOCKER_FILE_NAMES[index];
+   db.prepare("INSERT OR IGNORE INTO products(sku,name,category,codename,supplier_id,created_by) VALUES(?,?,?,?,?,?)")
+     .run(sku,"Botanical Concept "+String(index+1).padStart(2,"0"),"Botanicals",codename,supplierId,adminId);
  }
  db.exec("COMMIT");
 }catch(error){db.exec("ROLLBACK");throw error;}

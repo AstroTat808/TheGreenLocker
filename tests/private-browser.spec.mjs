@@ -66,7 +66,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.getByRole("heading",{level:1})).toBeVisible();
  await assertNoOverflow(page);
  await page.getByRole("link",{name:"Internal catalog"}).click();
- await expect(page.getByRole("heading",{name:"Catalog concepts"})).toBeVisible();
+ await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
  await expect(page.getByText("Nothing available")).toHaveCount(0);
  await assertNoOverflow(page);
  await page.getByRole("button",{name:"Log out"}).click();
@@ -111,6 +111,39 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.goto("/catalog");
  const card=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:productName,exact:true})});
  await expect(card).toBeVisible();
- await expect(card.getByText("No prices or sales")).toBeVisible();
+ await expect(card.getByText(/No prices, reservations or sales/i)).toBeVisible();
  await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
+ await page.goto("/admin");
+ const botanicalSku="BOT-"+randomBytes(4).toString("hex").toUpperCase();
+ const botanicalCode="Vault Zero "+botanicalSku;
+ const botanicalForm=page.locator('form[action="/admin/products"]');
+ await botanicalForm.locator('input[name="sku"]').fill(botanicalSku);
+ await botanicalForm.locator('input[name="name"]').fill("Botanical development concept "+botanicalSku);
+ await botanicalForm.locator('input[name="codename"]').fill(botanicalCode);
+ await botanicalForm.locator('select[name="category"]').selectOption("Botanicals");
+ await botanicalForm.getByRole("button",{name:"Save draft"}).click();
+ await expect(page.getByText("Draft saved")).toBeVisible();
+ await page.goto("/catalog");
+ const botanicalCard=page.locator(".catalog-card").filter({has:page.getByRole("heading",{name:botanicalCode,exact:true})});
+ await expect(botanicalCard).toBeVisible();
+ await expect(botanicalCard.locator(".locker-tier-face")).toHaveCount(4);
+ for (const [index,pkg] of [
+   {name:"THE KEY",weight:"1/8 oz"},
+   {name:"THE SIGNAL",weight:"1/4 oz"},
+   {name:"THE CIPHER",weight:"1/2 oz"},
+   {name:"THE VAULT",weight:"1 oz"}
+ ].entries()) {
+   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(pkg.name);
+   await expect(botanicalCard.locator(".locker-tier-face").nth(index)).toContainText(pkg.weight);
+ }
+ await expect(botanicalCard.getByText(/THE ARCHIVE|1\/4 lb|16 oz/i)).toHaveCount(0);
+ await botanicalCard.locator(".locker-tier").nth(2).click();
+ await expect(botanicalCard.locator('input[value="m"]')).toBeChecked();
+ await expect(page.getByRole("button",{name:/buy|checkout|order|reserve/i})).toHaveCount(0);
+ await assertNoOverflow(page);
+ await page.goto("/admin");
+ await expect(page.locator(".locker-internal-package")).toContainText("THE ARCHIVE");
+ await expect(page.locator(".locker-internal-package")).toContainText("1/4 lb");
+ await assertNoOverflow(page);
+
 });
