@@ -1,0 +1,27 @@
+name: Dedicated staging preview QA
+on:
+  pull_request:
+    branches: [staging-preview]
+  push:
+    branches: [staging-preview]
+
+permissions:
+  contents: read
+
+jobs:
+  gated-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Syntax and development server regression
+        run: |
+          npm run check
+          node --check scripts/preview-gate.mjs
+          node --test tests/preview-gate.test.mjs
+          npm run test:workshop
+          npm run test:private
+          npm run test:staging
