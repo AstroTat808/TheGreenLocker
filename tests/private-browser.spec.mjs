@@ -47,7 +47,7 @@ async function login(page,email) {
  await page.getByLabel("Email address").fill(email);
  await page.getByLabel("Password").fill(password);
  await page.getByRole("button",{name:"Log in",exact:true}).click();
- await expect(page).toHaveURL(/\/$/);
+ await expect(page).toHaveURL(/\/member$/);
  const ageYes=page.getByRole("button",{name:"YES, I AM 21+"});
  if (await ageYes.isVisible()) await ageYes.click();
 }
@@ -58,6 +58,8 @@ test("anonymous visitors are redirected to login instead of seeing the homepage"
  await assertNoOverflow(page);
  await page.goto("/catalog");
  await expect(page).toHaveURL(/\/login$/);
+ await page.goto("/member");
+ await expect(page).toHaveURL(/\/login$/);
 });
 test("invited member can register, log in, and view concept-only catalog",async({page})=>{
  const email=emailFor();
@@ -65,7 +67,7 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await login(page,email);
  await expect(page.getByRole("heading",{level:1})).toBeVisible();
  await assertNoOverflow(page);
- await page.getByRole("link",{name:"Internal catalog"}).click();
+ await page.getByRole("link",{name:"Concept catalog"}).click();
  await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
  const portal=page.locator("#locker-entry-portal");
  const skipIntro=page.getByRole("button",{name:"Skip intro"});
@@ -115,6 +117,71 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await page.goto("/catalog");
  await expect(page).toHaveURL(/\/login$/);
 });
+test("member vault dashboard personalizes greeting, remembers opt-in and unlocks accessibly",async({page})=>{
+ const email=emailFor();
+ await register(page,email);
+ await login(page,email);
+ await expect(page.getByRole("heading",{name:/Aloha,/})).toBeVisible();
+ await expect(page.getByRole("link",{name:/Unlock the vault/})).toBeVisible();
+ await expect(page.getByRole("link",{name:"My vault"})).toBeVisible();
+ await expect(page.getByRole("link",{name:"Brand home"})).toBeVisible();
+ await expect(page.getByRole("link",{name:/Browse without animation/})).toBeVisible();
+ await expect(page.locator(".member-stat")).toHaveCount(3);
+ await expect(page.getByText(/No prices, cart, purchases, reservations/i)).toBeVisible();
+ await assertNoOverflow(page);
+
+ const sound=page.getByRole("checkbox",{name:/Mechanical sound/});
+ const haptics=page.getByRole("checkbox",{name:/Gentle haptics/});
+ await expect(sound).not.toBeChecked();
+ await expect(haptics).not.toBeChecked();
+ if(await sound.isEnabled()){
+   await sound.check();
+   await expect(sound).toBeChecked();
+ }
+ const hapticsAvailable=await haptics.isEnabled();
+ if(hapticsAvailable){
+   await haptics.check();
+   await expect(haptics).toBeChecked();
+ }else{
+   await expect(page.locator("[data-vault-feedback-hint]")).toContainText("not supported");
+ }
+ await page.reload();
+ if(await sound.isEnabled()) await expect(sound).toBeChecked();
+ if(hapticsAvailable) await expect(haptics).toBeChecked();
+
+ await page.getByLabel("Display name").fill("Christopher");
+ await page.getByRole("button",{name:"Save display name"}).click();
+ await expect(page).toHaveURL(/\/member\?saved=1$/);
+ await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
+ await page.reload();
+ await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
+ await expect(page.locator("#member-display-name")).toHaveValue("Christopher");
+ await assertNoOverflow(page);
+
+ if(test.info().project.name==="private-mobile-webkit"){
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:740});
+     await assertNoOverflow(page);
+     const ctaHeight=await page.getByRole("link",{name:/Unlock the vault/}).evaluate(el=>el.getBoundingClientRect().height);
+     expect(ctaHeight).toBeGreaterThanOrEqual(44);
+   }
+ }
+ await page.getByRole("link",{name:/Unlock the vault/}).click();
+ await expect(page.locator("#locker-entry-portal")).toBeVisible();
+ await expect(page.locator(".locker-entry-skip")).toBeFocused();
+ await expect(page.locator("body")).toHaveClass(/locker-entry-active/);
+ await page.getByRole("button",{name:"Skip intro"}).click();
+ await expect(page).toHaveURL(/\/catalog$/);
+ await expect(page.locator("#locker-entry-portal")).toBeHidden();
+ await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
+ await expect(page.getByRole("button",{name:/buy|checkout|order/i})).toHaveCount(0);
+ await page.goto("/member");
+ await page.getByRole("link",{name:"Browse without animation"}).click();
+ await expect(page).toHaveURL(/\/catalog$/);
+ await expect(page.locator("#locker-entry-portal")).toBeHidden();
+ await assertNoOverflow(page);
+});
+
 test("administrator can manage draft products and stock without sales actions",async({page})=>{
  const email=emailFor();
  await register(page,email);
