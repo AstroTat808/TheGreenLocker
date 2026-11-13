@@ -240,6 +240,8 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  const shopMarkup=await response.text();
  assert.match(shopMarkup,/collection-vape-feature/);
  assert.match(shopMarkup,/Mushroom crispy treat/);
+ assert.doesNotMatch(shopMarkup,/EXISTING INTERNAL DRAFT RECORDS/);
+ assert.doesNotMatch(shopMarkup,/class="catalog-card"/);
  assert.doesNotMatch(shopMarkup,/<form[^>]+action="\/checkout"/i);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
