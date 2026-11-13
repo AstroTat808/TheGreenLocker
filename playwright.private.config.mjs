@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 const dbPath=path.join(process.cwd(),"data","browser-ci.sqlite");
 export default defineConfig({
  testDir:"./tests",
@@ -18,6 +19,6 @@ export default defineConfig({
   url:"http://127.0.0.1:4174/healthz",
   reuseExistingServer:false,
   timeout:30000,
-  env:{TGL_INVITE_CODE:"ci-playwright-invitation-12345",TGL_DB_PATH:dbPath,TGL_HOST:"127.0.0.1",PORT:"4174"}
+  env:{TGL_INVITE_CODE:"ci-playwright-invitation-12345",TGL_DB_PATH:dbPath,TGL_HOST:"127.0.0.1",PORT:"4174",TGL_MAIL_MODE:"outbox",TGL_MFA_ENCRYPTION_KEY:randomBytes(32).toString("base64"),TGL_PUBLIC_ORIGIN:"http://127.0.0.1:4174"}
  }
 });
