@@ -58,7 +58,9 @@ export function renderVaultFeedback() {
 }
 
 export function renderMemberPage({user, productCount, layout, csrfField, saved = false}) {
-  const name = esc(friendlyName(user));
+  const rawName = friendlyName(user);
+  const name = esc(rawName);
+  const terminalPunctuation = /[.!?]$/u.test(rawName) ? "" : ".";
   const email = esc(user.email);
   const fullName = esc(user.display_name ?? "");
   const count = Number.isSafeInteger(productCount) && productCount >= 0 ? productCount : 0;
@@ -70,7 +72,7 @@ export function renderMemberPage({user, productCount, layout, csrfField, saved =
         '<div class="member-hero-copy">' +
           '<span class="member-access"><span aria-hidden="true" class="member-access-light"></span>ACCESS GRANTED · MEMBERS ONLY</span>' +
           '<span class="eyebrow">THE GREEN LOCKER / YOUR PRIVATE ARCHIVE</span>' +
-          '<h1 id="member-welcome">Aloha, <em>' + name + '.</em></h1>' +
+          '<h1 id="member-welcome">Aloha, <em>' + name + terminalPunctuation + '</em></h1>' +
           '<p>Welcome to your private corner of The Green Locker. Step through the vault, explore the Locker Files, or make the experience your own.</p>' +
           '<div class="member-actions">' +
             '<a id="member-enter-vault" class="member-primary" href="/catalog">Unlock the vault <span aria-hidden="true">✦</span></a>' +
