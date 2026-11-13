@@ -67,7 +67,7 @@ export function renderVaultFeedback() {
     '</section>';
 }
 
-export function renderMemberPage({user, productCount, layout, csrfField, memberCode, saved = false}) {
+export function renderMemberPage({user, productCount, layout, csrfField, memberCode, walletReady = false, saved = false, cardSaved = false}) {
   const rawName = friendlyName(user);
   const name = esc(rawName);
   const terminalPunctuation = /[.!?]$/u.test(rawName) ? "" : ".";
@@ -76,6 +76,13 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
   const count = Number.isSafeInteger(productCount) && productCount >= 0 ? productCount : 0;
   const role = user.role === "admin" ? "Administrator" : "Verified member";
   const code = esc(memberCode);
+  const cardTheme = ["emerald","obsidian","gilded"].includes(user.card_theme) ? user.card_theme : "emerald";
+  const cardTitle = ["Private Member","Vault Explorer","The Collector"].includes(user.card_title) ? user.card_title : "Private Member";
+  const cardMotto = esc(user.card_motto || "");
+  const titles = ["Private Member","Vault Explorer","The Collector"].map(value=>
+    '<option value="' + esc(value) + '"' + (cardTitle===value?' selected':'') + '>' + esc(value) + '</option>').join("");
+  const themes = [["emerald","Emerald & Gold"],["obsidian","Obsidian"],["gilded","Gilded Bronze"]].map(([value,label])=>
+    '<option value="' + value + '"' + (cardTheme===value?' selected':'') + '>' + label + '</option>').join("");
   const content =
     renderVaultPortal() +
     '<div class="member-dashboard">' +
@@ -132,19 +139,52 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
       '<section id="member-card" class="member-section member-identity-section" aria-labelledby="member-card-title" tabindex="-1">' +
         '<div class="member-section-head"><div><span class="eyebrow">UNIQUELY YOURS</span><h2 id="member-card-title">Your digital membership card</h2></div></div>' +
         '<div class="member-card-layout">' +
-          '<div class="member-credential" role="group" aria-label="Private digital membership card">' +
-            '<div class="member-credential-halo" aria-hidden="true"></div>' +
-            '<div class="member-credential-top"><img src="/logo" alt="The Green Locker shield" width="72" height="72">' +
-            '<span><strong>THE GREEN LOCKER</strong><small>PRIVATE MEMBER · DIGITAL CREDENTIAL</small></span></div>' +
-            '<div class="member-credential-details"><span>MEMBER NAME</span><strong>' + name + '</strong>' +
-            '<span>MEMBER REFERENCE</span><code data-member-code>' + code + '</code></div>' +
-            '<div class="member-credential-foot">PRIVATE CONCEPT MEMBERSHIP · NOT A LOGIN CREDENTIAL</div>' +
+          '<div class="member-card-experience">' +
+            '<div class="member-credential member-credential-scene" data-card-scene data-card-theme="' + cardTheme +
+              '" role="group" aria-label="Flippable private digital membership card">' +
+              '<div class="member-card-rotor" data-card-rotor>' +
+                '<div class="member-card-face member-card-front" data-card-front>' +
+                  '<div class="member-credential-halo" aria-hidden="true"></div>' +
+                  '<div class="member-credential-top"><img src="/logo" alt="The Green Locker shield" width="72" height="72">' +
+                    '<span><strong>THE GREEN LOCKER</strong><small>PRIVATE MEMBER · DIGITAL CREDENTIAL</small></span></div>' +
+                  '<div class="member-credential-details"><span>CARD EDITION</span><strong class="member-edition">' + esc(cardTitle) + '</strong>' +
+                    '<span>MEMBER NAME</span><strong>' + name + '</strong>' +
+                    '<span>MEMBER REFERENCE</span><code data-member-code>' + code + '</code></div>' +
+                  '<div class="member-credential-foot">PRIVATE CONCEPT MEMBERSHIP · NOT A LOGIN CREDENTIAL</div>' +
+                '</div>' +
+                '<div class="member-card-face member-card-back" data-card-back aria-hidden="true">' +
+                  '<span class="member-back-label">THE GREEN LOCKER · MEMBER CREDENTIAL</span>' +
+                  '<img src="/logo" alt="" width="78" height="78" class="member-back-mark">' +
+                  '<span class="member-back-motto">' + (cardMotto || "YOUR SPACE. YOUR STORY.") + '</span>' +
+                  '<span class="member-back-reference">' + code + '</span>' +
+                  '<small>PRIVATE DESIGN PREVIEW · NO SALES OR ACCESS RIGHTS</small>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="member-card-flip-button" data-card-flip aria-pressed="false" aria-label="Flip to back of membership card">Flip card to reveal back <span aria-hidden="true">↻</span></button>' +
+            '<p class="member-card-motion-hint">Tap Flip to view the reverse. Motion is reduced when requested.</p>' +
           '</div>' +
           '<div class="member-card-aside"><span class="eyebrow">YOUR DISTINCTIVE REFERENCE</span>' +
             '<h3>A card with your name on it.</h3>' +
-            '<p>Your membership card is securely associated with your signed-in account. Its reference remains consistent across visits and is not a password, access token, or proof of eligibility to purchase.</p>' +
-            '<p>The downloadable SVG uses the official shield logo and stays crisp at any size.</p>' +
-            '<a class="member-card-download" href="/member/card.svg" download="the-green-locker-member-card.svg">Download my card (SVG)</a>' +
+            '<p>Your card reference is associated with this account. It is not a password, access token, proof of age, or purchasing authorization.</p>' +
+            '<div class="member-card-actions">' +
+              '<a class="member-card-download" href="/member/card.svg" download="the-green-locker-member-card.svg">Download card (SVG)</a>' +
+              (walletReady
+               ? '<a class="member-card-download member-wallet-download" href="/member/wallet.pkpass">Add to Apple Wallet</a>'
+               : '<div class="member-wallet-pending"><strong>Apple Wallet setup pending</strong><small>A signed Wallet pass becomes available after the official Apple Pass Type certificate and team identifiers are securely provisioned. No unsigned pass will be distributed.</small></div>') +
+            '</div>' +
+            '<form class="member-card-preferences" action="/member/card/preferences" method="post">' + csrfField(user.csrf) +
+              '<fieldset><legend>PERSONALIZE YOUR CARD</legend>' +
+                '<label for="member-card-theme">Card finish</label>' +
+                '<select id="member-card-theme" name="card_theme" required>' + themes + '</select>' +
+                '<label for="member-card-edition-select">Card edition</label>' +
+                '<select id="member-card-edition-select" name="card_title" required>' + titles + '</select>' +
+                '<label for="member-card-motto">Personal motto (optional)</label>' +
+                '<input id="member-card-motto" type="text" name="card_motto" maxlength="70" placeholder="Your space. Your story." value="' + cardMotto + '">' +
+              '</fieldset>' +
+              '<button class="private-button member-card-save" type="submit">Save card design</button>' +
+              (cardSaved ? '<p role="status" class="form-ok">Your card design was saved.</p>' : '') +
+            '</form>' +
           '</div>' +
         '</div>' +
       '</section>' +
@@ -168,6 +208,6 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
         '</div>' +
       '</section>' +
       '<p class="member-footnote">PRIVATE CONCEPT ENVIRONMENT · No prices, cart, purchases, reservations, shipping or fulfillment.</p>' +
-    '</div><script src="/vault-entry.js" defer></script><script src="/member-compartments.js" defer></script>';
+    '</div><script src="/vault-entry.js" defer></script><script src="/member-compartments.js" defer></script><script src="/member-card-ui.js" defer></script>';
   return layout("Your private vault",content,user,user.csrf);
 }

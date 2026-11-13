@@ -62,6 +62,7 @@ test("anonymous visitors are redirected to login instead of seeing the homepage"
  await expect(page).toHaveURL(/\/login$/);
 });
 test("invited member can register, log in, and view concept-only catalog",async({page})=>{
+ test.slow(); // Full authenticated mobile visual audit captures 21 screenshots.
  const email=emailFor();
  await register(page,email);
  await login(page,email);
@@ -129,20 +130,75 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.getByRole("heading",{name:"Aloha, Christopher."})).toBeVisible();
  await expect(page.locator("#member-display-name")).toHaveValue("Christopher");
  await expect(page.locator("[data-member-code]")).toHaveText(memberCode);
+ await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-theme","emerald");
+ await expect(page.getByText("Apple Wallet setup pending")).toBeVisible();
+ const walletAttempt=await page.request.get("/member/wallet.pkpass");
+ expect(walletAttempt.status()).toBe(503);
+ expect(walletAttempt.headers()["content-type"]).toContain("text/plain");
+ const walletText=await walletAttempt.text();
+ expect(walletText).toContain("signing is not yet configured");
+ await expect(page.getByRole("button",{name:"Flip to back of membership card"})).toBeVisible();
+ await page.getByRole("button",{name:"Flip to back of membership card"}).click();
+ await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","back");
+ await expect(page.locator("[data-card-back]")).toHaveAttribute("aria-hidden","false");
+ await page.getByRole("button",{name:"Flip to front of membership card"}).click();
+ await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","front");
+ await page.getByLabel("Card finish").selectOption("obsidian");
+ await page.getByLabel("Card edition").selectOption("Vault Explorer");
+ await page.getByLabel("Personal motto (optional)").fill("Stay curious. Stay original.");
+ await page.getByRole("button",{name:"Save card design"}).click();
+ await expect(page).toHaveURL(/\/member\?card_saved=1#member-card$/);
+ await expect(page.getByText("Your card design was saved.")).toBeVisible();
+ await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-theme","obsidian");
+ await expect(page.locator(".member-edition")).toHaveText("Vault Explorer");
+ await page.reload();
+ await expect(page.getByLabel("Card finish")).toHaveValue("obsidian");
+ await expect(page.getByLabel("Card edition")).toHaveValue("Vault Explorer");
+ await expect(page.getByLabel("Personal motto (optional)")).toHaveValue("Stay curious. Stay original.");
+ const brandedSVG=await (await page.request.get("/member/card.svg")).text();
+ expect(brandedSVG).toContain("Stay curious. Stay original.");
+ expect(brandedSVG).toContain("Vault Explorer");
+ expect(brandedSVG).toContain(memberCode);
  const renamedSvg=await (await page.request.get("/member/card.svg")).text();
  expect(renamedSvg).toContain("Christopher");
  expect(renamedSvg).toContain(memberCode);
  await assertNoOverflow(page);
  if(test.info().project.name==="private-mobile-webkit"){
+   const directory=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(directory,{recursive:true});
+   await page.emulateMedia({reducedMotion:"reduce"});
    for(const width of [320,375,430]){
-     await page.setViewportSize({width,height:740});
+     await page.setViewportSize({width,height:780});
      await assertNoOverflow(page);
      const ctaHeight=await page.getByRole("link",{name:/Unlock the vault/}).evaluate(el=>el.getBoundingClientRect().height);
      expect(ctaHeight).toBeGreaterThanOrEqual(44);
      await expect(page.locator(".member-compartment")).toHaveCount(4);
-     const cardWidth=await page.locator(".member-credential").evaluate(el=>el.getBoundingClientRect().width);
+     const cardWidth=await page.locator("[data-card-scene]").evaluate(el=>el.getBoundingClientRect().width);
      expect(cardWidth).toBeLessThanOrEqual(width);
+     const flipHeight=await page.locator("[data-card-flip]").evaluate(el=>el.getBoundingClientRect().height);
+     expect(flipHeight).toBeGreaterThanOrEqual(44);
+     for(const [name,selector] of [
+       ["welcome",".member-hero"],
+       ["overview",".member-overview"],
+       ["compartments",".member-compartments"],
+       ["card-front","#member-card"],
+       ["settings","#member-settings"]
+     ]){
+       await expect(page.locator(selector)).toBeVisible();
+       await page.locator(selector).screenshot({
+         path:path.join(directory,width+"-"+name+".png"),animations:"disabled"
+       });
+     }
+     await page.getByRole("button",{name:"Flip to back of membership card"}).click();
+     await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","back");
+     await page.locator("#member-card").screenshot({
+       path:path.join(directory,width+"-card-back.png"),animations:"disabled"
+     });
+     await page.getByRole("button",{name:"Flip to front of membership card"}).click();
+     await assertNoOverflow(page);
+     await page.screenshot({path:path.join(directory,width+"-full-dashboard.png"),fullPage:true,animations:"disabled"});
    }
+   await page.emulateMedia({reducedMotion:"no-preference"});
  }
  await page.getByRole("link",{name:"Concept catalog"}).click();
  await expect(page.getByRole("heading",{name:/THE LOCKER FILES/i})).toBeVisible();
