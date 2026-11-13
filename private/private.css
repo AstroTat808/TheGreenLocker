@@ -516,3 +516,199 @@ body{
 @media(prefers-reduced-motion:reduce){
   .member-art-orbit,.member-primary,.member-secondary,.member-shortcut{animation:none!important;transition:none!important;transform:none!important}
 }
+
+
+/* Vault compartment navigation — tangible hinged shutters, navigable links. */
+.member-compartments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.member-compartment{
+  position:relative;display:block;min-height:245px;min-width:0;overflow:hidden;isolation:isolate;
+  border:1px solid #d6b77a83;border-radius:18px;text-decoration:none;color:#f5dfac;
+  background:radial-gradient(ellipse at 88% 4%,#2c664028,transparent 58%),linear-gradient(142deg,#132d1f,#05150e);
+  box-shadow:0 20px 45px #0006,inset 0 1px #f8df9e19;touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.member-compartment::after{
+  content:"";position:absolute;z-index:3;inset:0;pointer-events:none;border-radius:17px;
+  box-shadow:inset 0 0 0 1px #e4bf7733,inset 0 0 55px #0008;
+}
+.compartment-panel{
+  position:absolute;z-index:1;top:0;bottom:0;width:51%;pointer-events:none;opacity:.62;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 29px,#dabf8110 30px 32px,transparent 33px 57px),
+    linear-gradient(126deg,#183d28,#091d13 60%,#173523);
+  box-shadow:inset 0 0 0 2px #d8b47362,inset 0 0 0 8px #06180d,0 0 22px #000a;
+  transform:translateX(0);
+}
+.compartment-panel-left{left:0;border-right:3px double #d8b474ae;transform-origin:left center}
+.compartment-panel-right{right:0;border-left:3px double #d8b474ae;transform-origin:right center}
+.compartment-content{
+  position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;
+  justify-content:center;min-height:245px;padding:clamp(22px,3vw,36px);
+  text-shadow:0 1px 10px #000a;
+}
+.compartment-index{
+  display:block;max-width:100%;font:700 10px/1.5 Arial,sans-serif;
+  letter-spacing:.16em;color:#d6b779;overflow-wrap:anywhere;
+}
+.compartment-emblem{
+  display:grid;place-items:center;width:55px;height:55px;margin:16px 0 12px;
+  border:1px solid #f0d08fba;border-radius:50%;background:radial-gradient(circle,#48633d,#142d20 75%);
+  box-shadow:0 0 0 5px #f0c77b12,0 0 22px #e9ca6b2a;font:29px/1 Georgia,serif;color:#ffdda0;
+}
+.compartment-content>strong{font:normal clamp(24px,2.9vw,35px)/1.1 Georgia,serif;letter-spacing:-.02em;color:#fff0c8}
+.compartment-content>small{font:13px/1.6 Arial,sans-serif;color:#c4d1be;margin:9px 0 12px}
+.compartment-action{
+  display:inline-block;margin-top:auto;font:700 10px/1.5 Arial,sans-serif;color:#f5cb83;letter-spacing:.11em;
+  border-bottom:1px solid #daba775c;padding-bottom:4px;
+}
+@media(hover:hover) and (pointer:fine){
+  .member-compartment:hover{border-color:#f2d394;box-shadow:0 23px 52px #0008,0 0 27px #d7b56b12}
+  .member-compartment:hover .compartment-emblem{box-shadow:0 0 0 5px #f0c77b22,0 0 32px #e9ca6b52}
+}
+.member-compartment.is-opening .compartment-panel-left{
+  animation:member-compartment-left 440ms cubic-bezier(.17,.68,.21,1) forwards
+}
+.member-compartment.is-opening .compartment-panel-right{
+  animation:member-compartment-right 440ms cubic-bezier(.17,.68,.21,1) forwards
+}
+.member-compartment.is-opening .compartment-emblem{
+  animation:member-compartment-lock 440ms ease-in-out forwards
+}
+@keyframes member-compartment-left{
+  0%,12%{transform:translateX(0) rotateY(0)}
+  100%{transform:translateX(-105%) rotateY(-26deg)}
+}
+@keyframes member-compartment-right{
+  0%,12%{transform:translateX(0) rotateY(0)}
+  100%{transform:translateX(105%) rotateY(26deg)}
+}
+@keyframes member-compartment-lock{
+  0%,30%{transform:rotate(0deg) scale(1)}
+  65%{transform:rotate(65deg) scale(1.12)}
+  100%{transform:rotate(130deg) scale(.94)}
+}
+.member-compartment:focus-visible{
+  outline:3px solid #ffdf9f;outline-offset:4px;
+}
+
+/* Private digital membership card — source-bound to authenticated account. */
+.member-identity-section,.member-settings{scroll-margin-top:26px}
+.member-card-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(235px,.85fr);gap:24px;align-items:center}
+.member-credential{
+  position:relative;min-width:0;aspect-ratio:5/3;min-height:260px;overflow:hidden;isolation:isolate;
+  display:flex;flex-direction:column;justify-content:space-between;gap:14px;
+  border-radius:19px;padding:clamp(22px,3.4vw,38px);
+  border:1px solid #f2d49bb3;
+  background:
+    radial-gradient(circle at 88% 38%,#285c3f7d,transparent 52%),
+    repeating-linear-gradient(90deg,transparent 0 30px,#d9c48007 31px 33px,transparent 34px 65px),
+    linear-gradient(138deg,#133f29,#061d12 50%,#020c08);
+  box-shadow:0 32px 75px #0009,inset 0 0 0 7px #021209,inset 0 0 0 8px #b68d5170,0 0 34px #c29f5114;
+}
+.member-credential::before{
+  content:"";position:absolute;inset:-60% -15% auto auto;width:80%;aspect-ratio:1;border:2px dashed #e2c07742;
+  border-radius:50%;box-shadow:0 0 0 34px #ccac6320,0 0 0 74px #ccac6310;
+  transform:rotate(-23deg);pointer-events:none;
+}
+.member-credential::after{
+  content:"";position:absolute;left:clamp(22px,3.4vw,38px);right:clamp(22px,3.4vw,38px);
+  bottom:30%;height:1px;background:linear-gradient(90deg,#eed49d9c,transparent 65%);pointer-events:none;
+}
+.member-credential-top,.member-credential-details,.member-credential-foot{position:relative;z-index:2}
+.member-credential-top{display:flex;align-items:center;gap:14px}
+.member-credential-top img{
+  width:clamp(56px,6vw,80px);height:clamp(56px,6vw,80px);flex:none;object-fit:contain;
+  filter:drop-shadow(0 5px 14px #0008)
+}
+.member-credential-top strong{
+  display:block;font:normal clamp(19px,2.2vw,28px)/1.1 Georgia,serif;letter-spacing:.075em;color:#ffebc2;
+}
+.member-credential-top small{
+  display:block;margin-top:6px;font:700 8px/1.4 Arial,sans-serif;
+  letter-spacing:.16em;color:#daba7f;
+}
+.member-credential-details{display:grid;gap:7px;padding:8px 0;min-width:0}
+.member-credential-details>span{
+  font:700 9px/1.4 Arial,sans-serif;letter-spacing:.21em;color:#d6b881
+}
+.member-credential-details>strong{
+  font:normal clamp(26px,3.5vw,44px)/1.12 Georgia,serif;color:#fff0c6;
+  overflow-wrap:anywhere;letter-spacing:-.025em;
+}
+.member-credential-details>code{
+  display:block;max-width:100%;width:fit-content;font:700 clamp(11px,1.4vw,18px)/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.055em;color:#f3d39a;overflow-wrap:anywhere;white-space:normal
+}
+.member-credential-foot{
+  font:700 8px/1.5 Arial,sans-serif;letter-spacing:.1em;color:#b9c1ae
+}
+.member-card-aside{padding:12px 0;min-width:0}
+.member-card-aside h3{font:normal clamp(29px,3vw,39px)/1.13 Georgia,serif;letter-spacing:-.03em;color:#f3e0b7;margin:10px 0 19px}
+.member-card-aside p{font:13px/1.8 Arial,sans-serif;color:#bbccbc;margin:0 0 13px}
+.member-card-download{
+  display:inline-flex;justify-content:center;align-items:center;text-align:center;min-height:50px;
+  margin-top:15px;padding:12px 20px;border-radius:9px;border:1px solid #fff0b8ad;
+  background:linear-gradient(120deg,#b18a48,#f1d491,#be9654);color:#092315;text-decoration:none;
+  font:700 13px/1.4 Arial,sans-serif;box-shadow:0 8px 26px #0006;
+}
+.member-card-download:hover{background:linear-gradient(120deg,#cba561,#ffe7ae,#d8b26f);color:#071a11}
+.member-card-download:focus-visible{outline:3px solid #fff0be;outline-offset:3px}
+
+/* Radio card soundscape selector, keyboard and screen-reader friendly. */
+.vault-profile-group{min-width:0;border:0;padding:0;margin:18px 0 12px}
+.vault-profile-group legend{padding:0 0 10px;font:700 10px/1.4 Arial,sans-serif;letter-spacing:.17em;color:#d6bb82}
+.vault-profile-list{display:grid;gap:10px}
+.vault-profile-option{
+  display:flex;flex-direction:row;align-items:center;gap:13px;min-width:0;min-height:68px;
+  padding:14px;border:1px solid #d4b17b69;border-radius:11px;
+  background:#0a2016;cursor:pointer;touch-action:manipulation;
+  transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease
+}
+.vault-profile-option:hover{background:#143a29;border-color:#f1d49b}
+.vault-profile-option:has(input:checked){background:#21402d;border-color:#f5d38f;box-shadow:0 0 0 2px #d6ab6520}
+.vault-profile-option:has(input:disabled){opacity:.55;cursor:not-allowed}
+.vault-profile-option input[type=radio]{
+  display:block;flex:none;width:21px;height:21px;min-height:21px;padding:0;margin:0;
+  accent-color:#eac47c;cursor:pointer
+}
+.vault-profile-copy{display:block;min-width:0;flex:1}
+.vault-profile-copy strong{display:block;font:700 14px/1.3 Arial,sans-serif;color:#f7e2b4}
+.vault-profile-copy small{display:block;font:11px/1.6 Arial,sans-serif;color:#afc7b6;margin-top:4px}
+.vault-profile-indicator{width:8px;height:8px;flex:none;border-radius:50%;background:#886d46}
+.vault-profile-option:has(input:checked) .vault-profile-indicator{
+  background:#ffd596;box-shadow:0 0 14px #edc278
+}
+.vault-audition-button{
+  display:block;width:100%;min-height:46px;padding:11px 16px;
+  border:1px solid #dab97a91;border-radius:9px;background:#153321;
+  color:#f3d39c;font:700 12px/1.4 Arial,sans-serif;cursor:pointer;margin:10px 0 16px;
+}
+.vault-audition-button:hover{background:#214934;border-color:#f6d898}
+.vault-audition-button:focus-visible{outline:3px solid #fff0bd;outline-offset:3px}
+.vault-haptic-option{margin:0}
+@media(max-width:899px){
+  .member-card-layout{grid-template-columns:minmax(0,1fr);gap:18px}
+  .member-card-aside{padding:0 5px}
+  .member-card-aside h3{font-size:31px}
+}
+@media(max-width:600px){
+  .member-compartments{grid-template-columns:minmax(0,1fr);gap:13px}
+  .member-compartment,.compartment-content{min-height:190px}
+  .compartment-content{padding:23px}
+  .compartment-emblem{width:46px;height:46px;font-size:25px;margin:9px 0}
+  .compartment-content>strong{font-size:27px}
+  .compartment-content>small{font-size:12px}
+  .member-credential{min-height:242px;padding:23px 18px;border-radius:14px}
+  .member-credential-top img{width:53px;height:53px}
+  .member-credential-top{gap:9px}
+  .member-credential-top strong{font-size:18px}
+  .member-credential-top small{font-size:7px}
+  .member-credential-details>strong{font-size:clamp(25px,7.5vw,34px)}
+  .member-credential-details>code{font-size:12px;letter-spacing:0}
+  .member-credential-foot{font-size:7px;letter-spacing:0}
+  .member-card-download{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .member-compartment,.member-compartment *,.vault-profile-option{animation:none!important;transition:none!important}
+  .compartment-panel{transform:none!important}
+}
