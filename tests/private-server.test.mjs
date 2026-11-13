@@ -28,6 +28,17 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(response.status,303);assert.equal(response.headers.get("location"),"/login");
  response=await req("/catalog");assert.equal(response.status,303);
  response=await req("/styles.css");assert.equal(response.status,303);
+ response=await req("/assets/shield-logo.webp");assert.equal(response.status,303,"Private shield asset requires member login.");
+ response=await req("/locker-motion.js");assert.equal(response.status,303,"Selector animation requires member login.");
+ response=await req("/logo");assert.equal(response.status,200);
+ assert.equal(response.headers.get("content-type"),"image/webp");
+ let mark=Buffer.from(await response.arrayBuffer());
+ assert.equal(mark.subarray(0,4).toString("ascii"),"RIFF");
+ assert.equal(mark.subarray(8,12).toString("ascii"),"WEBP");
+ response=await req("/favicon.ico");assert.equal(response.status,200);
+ assert.equal(response.headers.get("content-type"),"image/png");
+ mark=Buffer.from(await response.arrayBuffer());
+ assert.equal(mark.subarray(0,8).toString("hex"),"89504e470d0a1a0a");
  response=await post("/register",{email:"member@example.com",password:"correct-long-password-123",invite:"wrong"});
  assert.equal(response.status,400);
  response=await post("/register",{email:"member@example.com",password:"correct-long-password-123",invite:"ci-test-invitation-code-unpublished"});
@@ -51,6 +62,10 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.match(response.headers.get("set-cookie"),/SameSite=Strict/);
  response=await req("/",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(await response.text(),/THE GOOD STUFF/);
+ response=await req("/assets/shield-logo.webp",{headers:{Cookie:cookie}});assert.equal(response.status,200);
+ assert.equal(response.headers.get("content-type"),"image/webp");
+ response=await req("/locker-motion.js",{headers:{Cookie:cookie}});assert.equal(response.status,200);
+ assert.match(await response.text(),/prefers-reduced-motion/);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
  db.prepare("UPDATE users SET role='admin' WHERE email=?").run("member@example.com");
