@@ -23,8 +23,8 @@ TGL_BACKUP_S3_ENDPOINT=https://t3.storageapi.dev
 TGL_BACKUP_S3_BUCKET=<bucket's unique S3 name>
 TGL_BACKUP_S3_REGION=auto
 TGL_BACKUP_S3_STYLE=virtual-host
-TGL_BACKUP_S3_ACCESS_KEY_ID=\${{greenlocker-encrypted-backups.ACCESS_KEY_ID}}
-TGL_BACKUP_S3_SECRET_ACCESS_KEY=\${{greenlocker-encrypted-backups.SECRET_ACCESS_KEY}}
+TGL_BACKUP_S3_ACCESS_KEY_ID=${{greenlocker-encrypted-backups.ACCESS_KEY_ID}}
+TGL_BACKUP_S3_SECRET_ACCESS_KEY=${{greenlocker-encrypted-backups.SECRET_ACCESS_KEY}}
 \`\`\`
 
 The bucket and storage variables must be configured in the isolated **staging** environment. If Railway changes the bucket name, region or endpoint, use the new values returned by its bucket credentials operation. Do not embed S3 credentials or the encryption key in GitHub, a screenshot or the public site.
