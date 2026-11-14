@@ -61,7 +61,7 @@ test("eight private photos, reordering, cover synchronization and captioning sur
   const shop=renderCollectionConcepts(state);
   assert.match(shop,/data-concept-gallery/);
   assert.match(shop,/Previous Variety 01 image/);
-  assert.match(shop,/8 \/ 8/);
+  assert.match(shop,/1 \/ 8/);
   assert.match(shop,/Gold pouch front/);
   assert.doesNotMatch(shop,/<form|\/checkout|\/cart|shipping-fee/i);
   const del=removeGalleryImage(db,{slotId:"botanical-01",expectedVersion:11,imageId:reversed[0],editorId:id});
