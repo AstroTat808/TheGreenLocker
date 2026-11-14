@@ -358,6 +358,28 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.locator(".private-logo img")).toHaveAttribute("src","/logo");
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
+ await page.getByRole("link",{name:"Backups"}).click();
+ await expect(page).toHaveURL(/\/admin\/backups$/);
+ await expect(page.getByRole("heading",{name:"Encrypted Backup Operations"})).toBeVisible();
+ await expect(page.getByText("Independent provider")).toBeVisible();
+ await expect(page.getByText("Retention controls")).toBeVisible();
+ await expect(page.getByText("Not connected",{exact:true})).toBeVisible();
+ const retention=page.locator('form[action="/admin/backups/policy"]');
+ await retention.locator('input[name="retention_days"]').fill("120");
+ await retention.locator('select[name="mode"]').selectOption("dry-run");
+ await retention.getByRole("button",{name:"Save retention policy"}).click();
+ await expect(page.getByText("Retention policy saved")).toBeVisible();
+ if(test.info().project.name==="private-mobile-webkit"){
+  const dir=path.join("test-results","green-locker-mobile-visual-qa");
+  fs.mkdirSync(dir,{recursive:true});
+  for(const width of [320,375,430]){
+   await page.setViewportSize({width,height:790});
+   await assertNoOverflow(page);
+   await page.screenshot({path:path.join(dir,width+"-backup-operations.png"),
+    fullPage:true,animations:"disabled"});
+  }
+ }
+ await page.goto("/admin");
  await page.getByRole("link",{name:/Assortment Studio/}).click();
  await expect(page).toHaveURL(/\/admin\/assortment$/);
  await expect(page.locator(".assortment-editor-card")).toHaveCount(18);
