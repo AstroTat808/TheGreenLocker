@@ -12,6 +12,14 @@
  const MAX_SIDE=1600;
  const WEBP_MAX=2*1024*1024;
  const IMAGE_TYPES=new Set(["image/png","image/jpeg","image/webp"]);
+ // Calling location.assign() with the exact same URL is a same-document
+ // navigation, NOT a refresh. Repeated uploads used to display stale photos.
+ const refreshEditor=(notice,slot)=>{
+  const target="/admin/assortment?notice="+encodeURIComponent(notice)+"#edit-"+encodeURIComponent(slot);
+  if(window.location.href===new URL(target,window.location.href).href)window.location.reload();
+  else window.location.assign(target);
+ };
+
 
  // Browsers can reattach ICC color profiles even to a newly encoded canvas.
  // Strip those container chunks and their VP8X flags so EXIF, XMP, ICC and
@@ -112,11 +120,112 @@
     if(response.status===409)throw Error("Another edit changed this slot. Refresh and try again.");
     if(!response.ok)throw Error((await response.text()).slice(0,170)||"Image upload was rejected.");
     if(label)label.textContent="Artwork uploaded. Reloading the latest concept…";
-    window.location.assign("/admin/assortment?notice=Artwork%20uploaded#edit-"+encodeURIComponent(slot));
+    refreshEditor("Artwork uploaded",slot);
    }catch(error){
     if(label)label.textContent=error?.message||"Unable to upload image.";
     button.disabled=false;button.textContent="Optimize & upload image";
    }
   });
  }
+ // Native pointer drag/drop on desktop; accessible Up/Down/Cover controls
+ // provide the same ordering feature on touch devices and keyboards.
+ const saveRequest=async(gallery,endpoint,payload)=>{
+  const response=await fetch("/admin/assortment/gallery/"+endpoint,{
+   method:"POST",credentials:"same-origin",
+   headers:{"Content-Type":"application/json","X-CSRF-Token":gallery.dataset.csrf||""},
+   body:JSON.stringify({
+    slot_id:gallery.dataset.slot,version:Number(gallery.dataset.version),...payload
+   })
+  });
+  if(response.status===409)throw Error("This gallery was changed elsewhere. Reload the page before editing.");
+  if(!response.ok)throw Error((await response.text()).slice(0,180)||"Gallery update was rejected.");
+  return response.json();
+ };
+ for(const gallery of document.querySelectorAll("[data-gallery]")){
+  const list=gallery.querySelector(".assortment-gallery-list");
+  const status=gallery.querySelector(".assortment-gallery-status");
+  const entries=()=>Array.from(list.querySelectorAll("[data-photo-id]"));
+  const notify=message=>{if(status)status.textContent=message;};
+  const refreshPositions=()=>{
+   entries().forEach((item,i,all)=>{
+    const label=item.querySelector(".assortment-gallery-position");
+    if(label)label.textContent=i===0?"Cover image":"Image "+(i+1);
+    for(const action of ["up","down","cover"]){
+     const b=item.querySelector('[data-gallery-action="'+action+'"]');
+     if(!b)continue;
+     b.disabled=(action==="up"||action==="cover")?i===0:i===all.length-1;
+    }
+   });
+   notify("Order updated locally. Select Save image order to keep changes.");
+  };
+  let dragging=null;
+  list.addEventListener("dragstart",event=>{
+   const item=event.target.closest("[data-photo-id]");
+   if(!item)return;
+   dragging=item;
+   event.dataTransfer.effectAllowed="move";
+   event.dataTransfer.setData("text/plain",item.dataset.photoId);
+   item.classList.add("is-dragging");
+  });
+  list.addEventListener("dragover",event=>{
+   if(!dragging)return;
+   event.preventDefault();
+   event.dataTransfer.dropEffect="move";
+  });
+  list.addEventListener("drop",event=>{
+   if(!dragging)return;
+   event.preventDefault();
+   const target=event.target.closest("[data-photo-id]");
+   if(!target||target===dragging)return;
+   const rect=target.getBoundingClientRect();
+   list.insertBefore(dragging,event.clientY>rect.top+rect.height/2?target.nextSibling:target);
+   refreshPositions();
+  });
+  list.addEventListener("dragend",()=>{
+   dragging?.classList.remove("is-dragging");
+   dragging=null;
+  });
+  let saving=false;
+  const perform=async(endpoint,payload,message)=>{
+   if(saving)return;
+   saving=true;notify("Saving changes…");
+   try{
+    await saveRequest(gallery,endpoint,payload);
+    notify(message+" Refreshing the current gallery…");
+    refreshEditor("Gallery updated",gallery.dataset.slot);
+   }catch(error){
+    notify(error?.message||"Unable to save changes.");
+   }finally{saving=false;}
+  };
+  list.addEventListener("click",event=>{
+   const button=event.target.closest("[data-gallery-action]");
+   if(!button||button.disabled)return;
+   const item=button.closest("[data-photo-id]");
+   if(!item)return;
+   const action=button.dataset.galleryAction;
+   if(action==="up"){
+    const previous=item.previousElementSibling;
+    if(previous?.matches("[data-photo-id]"))list.insertBefore(item,previous);
+    refreshPositions();
+   }else if(action==="down"){
+    const next=item.nextElementSibling;
+    if(next?.matches("[data-photo-id]"))list.insertBefore(next,item);
+    refreshPositions();
+   }else if(action==="cover"){
+    list.insertBefore(item,entries()[0]);
+    refreshPositions();
+   }else if(action==="delete"){
+    if(window.confirm("Remove this concept image? This cannot be undone.")){
+     perform("delete",{image_id:Number(item.dataset.photoId)},"Image removed.");
+    }
+   }else if(action==="caption"){
+    const description=item.querySelector(".assortment-gallery-caption")?.value||"";
+    perform("caption",{image_id:Number(item.dataset.photoId),description},"Description saved.");
+   }
+  });
+  gallery.querySelector(".assortment-gallery-save")?.addEventListener("click",()=>{
+   perform("order",{ids:entries().map(item=>Number(item.dataset.photoId))},"Image order saved.");
+  });
+ }
+
 })();

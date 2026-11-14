@@ -53,7 +53,7 @@ const catalogPage = (products, user, csrf,db,{includeArchive=true,assortment=nul
   '<h2 id="collection-archive-heading">The Locker <em>Files.</em></h2>'+
   '<p>Previously created draft items are retained for inventory and QA continuity. They do not represent the finalized two-to-four variety lineup.</p></div></div>'+
   '<div class="catalog-grid">' + (products.length ? productRows(products,db) : '<p class="empty-state">No legacy draft entries.</p>') + '</div></section>' : '')+
-  '<script src="/vault-entry.js" defer></script><script src="/locker-motion.js" defer></script>',user,csrf);
+  '<script src="/vault-entry.js" defer></script><script src="/locker-motion.js" defer></script><script src="/gallery-preview.js" defer></script>',user,csrf);
 const adminPage = (products, movements, usersCount, user, csrf, notice = "", extras = "", categoryOptions = "") => {
  const total = products.reduce((sum,p)=>sum+p.stock,0);
  const rows = products.map(p=>'<tr><td>' + esc(p.sku) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.codename || '—') + '</td><td>' + esc(p.category) + '</td><td>' + p.stock + '</td><td>Draft only</td></tr>').join("");
@@ -295,7 +295,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Internal catalog") + link("/shop","Collections preview") + (user.role==="admin" ? link("/admin","Admin dashboard") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
-   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/gallery-preview.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/gallery-preview") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method==="GET" && ["/assets/collection-botanical.svg","/assets/collection-vape.svg","/assets/collection-treat.svg"].includes(pathname))
