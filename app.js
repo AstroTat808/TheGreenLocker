@@ -24,7 +24,15 @@
     dialog?.close();
   });
   document.querySelector("#ageNo")?.addEventListener("click", () => {
-    document.body.innerHTML = '<main style="background:#06160e;color:#f4ead6;min-height:100vh;display:grid;place-items:center;text-align:center;font:18px Arial;padding:40px"><div><h1 style="font:38px Georgia;color:#d8b16d">Preview unavailable</h1><p>This brand concept is for adults 21 and older.</p></div></main>';
+    const main = document.createElement("main");
+    main.className = "preview-unavailable";
+    const heading = document.createElement("h1");
+    heading.textContent = "Preview unavailable";
+    const message = document.createElement("p");
+    message.textContent = "This brand concept is for adults 21 and older.";
+    main.append(heading, message);
+    document.body.replaceChildren(main);
+    document.body.classList.add("preview-denied");
   });
   dialog?.addEventListener("cancel", e => e.preventDefault());
 })();
