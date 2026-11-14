@@ -24,7 +24,11 @@ assert.match(js, /NOT a licensed-store age-verification mechanism/);
 assert.equal(shield.toString("ascii",0,4),"RIFF");
 assert.equal(shield.toString("ascii",8,12),"WEBP");
 assert.equal(favicon.subarray(0,8).toString("hex"),"89504e470d0a1a0a");
-assert.match(html,/assets\/shield-logo\.webp/);
+const transparentShield = read("assets/shield-logo-transparent.svg");
+assert.match(transparentShield, /<mask id="shield-cutout"/);
+assert.match(transparentShield, /href="data:image\/webp;base64,/);
+assert.match(html,/assets\/shield-logo-transparent\.svg/);
+assert.doesNotMatch(html, /<img[^>]+shield-logo\.webp/i);
 assert.match(html,/assets\/shield-favicon\.png/);
 assert.doesNotMatch(html,/approved-logo\.png|assets\/logo\.svg|circular golden seal/i);
 
