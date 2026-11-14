@@ -110,3 +110,65 @@ export function renderBackupOperationsPage(snapshot,{layout,user,csrf,notice=""}
    (rows||'<tr><td colspan="4">No recorded events yet</td></tr>')+'</tbody></table></div></section>';
  return layout("Backup operations",body,user,csrf);
 }
+
+const limitReason=x=>String(x??"Unclassified failure").replace(/[^a-zA-Z0-9 .:_/-]/g,"").slice(0,160);
+function atomicJson(file,data){
+ const tmp=file+"."+randomBytes(7).toString("hex")+".tmp";
+ fs.writeFileSync(tmp,JSON.stringify(data,null,2)+"\n",{flag:"wx",mode:0o600});
+ fs.renameSync(tmp,file);
+}
+export function recordBackupEvent(directory,{type,code="",target="",reason="",timestamp=new Date().toISOString()}){
+ const root=path.resolve(directory);
+ fs.mkdirSync(root,{recursive:true,mode:0o700});
+ const file=backupPaths(root).operations,prior=safeRead(file)||{};
+ const history=Array.isArray(prior.history)?prior.history.filter(x=>x&&typeof x==="object"):[];
+ history.push({at:timestamp,type:String(type).slice(0,32),code:String(code).slice(0,64),
+  target:String(target).slice(0,40)});
+ const state={...prior,
+  successCount:number(prior.successCount)+(type==="verified"?1:0),
+  failureCount:number(prior.failureCount)+(type==="failure"?1:0),
+  consecutiveFailures:type==="verified"?0:type==="failure"?number(prior.consecutiveFailures)+1:number(prior.consecutiveFailures),
+  lastAttemptAt:timestamp,
+  lastFailureAt:type==="failure"?timestamp:prior.lastFailureAt||null,
+  lastFailureReason:type==="failure"?limitReason(reason):prior.lastFailureReason||null,
+  history:history.slice(-100)};
+ atomicJson(file,state);
+ return state;
+}
+export function recordBackupAlertResult(directory,{timestamp=new Date().toISOString(),delivery}){
+ const file=backupPaths(directory).operations,prior=safeRead(file)||{};
+ const updated={...prior,lastAlertAt:timestamp,alertDelivery:String(delivery).slice(0,40)};
+ atomicJson(file,updated);
+ return updated;
+}
+const validEmail=x=>typeof x==="string"&&x.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x);
+export async function dispatchBackupFailureAlert({directory,reason="Backup verification failed",env=process.env,fetchImpl=fetch}){
+ if(env.TGL_BACKUP_ALERT_ENABLED!=="1")return {delivery:"disabled"};
+ if(!env.TGL_BACKUP_ALERT_API_KEY||!validEmail(env.TGL_BACKUP_ALERT_TO)||!validEmail(env.TGL_BACKUP_ALERT_FROM))
+  return {delivery:"missing-configuration"};
+ const status=backupOperationsSnapshot(directory,env);
+ const attempt=new Date().toISOString();
+ const last=new Date(status.lastAlertAt||0).getTime();
+ if(status.alertDelivery==="accepted"&&Date.now()-last<30*60*1000)
+  return {delivery:"deduplicated"};
+ const body={
+  from:env.TGL_BACKUP_ALERT_FROM,
+  to:[env.TGL_BACKUP_ALERT_TO],
+  subject:"[Green Locker] Encrypted backup verification FAILED",
+  text:"The private Green Locker staging backup failed verification at "+attempt+
+   ". Code: "+limitReason(reason)+
+   "\nCheck the MFA-only Backup Operations dashboard and Railway deployment logs. No decryption keys, passwords, member records, or archive contents are included."
+ };
+ let delivery="rejected";
+ try{
+  const response=await fetchImpl("https://api.resend.com/emails",{method:"POST",
+   headers:{"Authorization":"Bearer "+env.TGL_BACKUP_ALERT_API_KEY,
+    "Content-Type":"application/json",
+    "Idempotency-Key":"greenlocker-backup-"+attempt.slice(0,13)},
+   body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
+  delivery=response.ok?"accepted":"rejected-"+response.status;
+  await response.body?.cancel();
+ }catch{delivery="transport-error";}
+ recordBackupAlertResult(directory,{delivery,timestamp:attempt});
+ return {delivery};
+}
