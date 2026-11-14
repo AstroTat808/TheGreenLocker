@@ -148,7 +148,14 @@ export async function restoreEncryptedBackup({encrypted,masterHex,targetDirector
   const result=checkRestoredSnapshot(restored);
   fs.renameSync(path.join(restored,"snapshot.sqlite"),path.join(restored,"preview.sqlite"));
   fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o700});
-  fs.renameSync(restored,target);
+  try{
+   fs.renameSync(restored,target);
+  }catch(error){
+   if(error.code!=="EXDEV")throw error;
+   // Recovery targets are often separate mounted volumes; support cross-device copy.
+   fs.cpSync(restored,target,{recursive:true,force:false,errorOnExist:true});
+  }
+  fs.chmodSync(target,0o700);
   return result;
  }finally{cleanUp(work);}
 }
