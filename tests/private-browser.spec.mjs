@@ -397,10 +397,58 @@ test("administrator can manage draft products and stock without sales actions",a
  await imageForm.getByRole("button",{name:/Optimize & upload image/}).click();
  await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
  await expect(page.locator('#edit-botanical-01 .assortment-editor-thumb img')).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await page.locator("#edit-botanical-01 summary").click();
+ const secondForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
+ await secondForm.locator('input[type="file"]').setInputFiles({
+   name:"alternate.png",mimeType:"image/png",
+   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xAMBzt/a8AAAAAElFTkSuQmCC","base64")
+ });
+ await secondForm.getByRole("button",{name:/Optimize & upload image/}).click();
+ await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
+ await page.locator("#edit-botanical-01 summary").click();
+ const panel=page.locator("#edit-botanical-01 [data-gallery]");
+ await expect(panel.locator("[data-photo-id]")).toHaveCount(2);
+ await expect(panel.locator(".assortment-gallery-counter")).toContainText("2 / 8");
+ // Mobile-accessible cover choice must preserve the new cover in SQLite.
+ await panel.locator('[data-gallery-action="cover"]').last().click();
+ await expect(panel.locator("[data-photo-id]").first().locator(".assortment-gallery-position")).toHaveText("Cover image");
+ await panel.getByRole("button",{name:"Save image order"}).click();
+ await expect(page.getByText("Gallery updated",{exact:true})).toBeVisible({timeout:10000});
+ await page.locator("#edit-botanical-01 summary").click();
+ await expect(page.locator("#edit-botanical-01 [data-gallery] [data-photo-id]")).toHaveCount(2);
+ if(test.info().project.name==="private-mobile-webkit"){
+   const dir=path.join("test-results","green-locker-mobile-visual-qa");
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:760});
+     await assertNoOverflow(page);
+     await page.locator("#edit-botanical-01").screenshot({
+       path:path.join(dir,width+"-media-gallery-admin.png"),animations:"disabled"
+     });
+   }
+ }
  await page.goto("/shop");
  await expect(page.getByText("Coastal Gold Concept",{exact:true})).toBeVisible();
  await expect(page.getByText("Night Vault Editions",{exact:true})).toBeVisible();
- await expect(page.locator(".collection-concept-botanical").first().locator("img.collection-art-photo")).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ const botanicalCard=page.locator(".collection-concept-botanical").first();
+ await expect(botanicalCard.locator("img.collection-art-photo")).toHaveCount(2);
+ await expect(botanicalCard.locator("img.collection-art-photo").first()).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeHidden();
+ const firstSource=await botanicalCard.locator("img.collection-art-photo").first().getAttribute("src");
+ await botanicalCard.getByRole("button",{name:/Next Variety 01 image/}).click();
+ await expect(botanicalCard.locator("[data-gallery-counter]")).toHaveText("2 / 2");
+ await expect(botanicalCard.locator("img.collection-art-photo").first()).toBeHidden();
+ await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeVisible();
+ expect(await botanicalCard.locator("img.collection-art-photo").nth(1).getAttribute("src")).not.toBe(firstSource);
+ if(test.info().project.name==="private-mobile-webkit"){
+   const dir=path.join("test-results","green-locker-mobile-visual-qa");
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:760});
+     await assertNoOverflow(page);
+     await page.locator("#collection-botanicals").screenshot({
+       path:path.join(dir,width+"-multi-image-shop.png"),animations:"disabled"
+     });
+   }
+ }
  await expect(page.getByRole("button",{name:/checkout|order now|buy now|pay now/i})).toHaveCount(0);
  await page.goto("/admin");
  await expect(page.getByRole("link",{name:/Wallet Operations/})).toBeVisible();
