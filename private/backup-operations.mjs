@@ -6,7 +6,7 @@ import {randomBytes} from "node:crypto";
 const escape=x=>String(x??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const safeRead=(file)=>{try{return JSON.parse(fs.readFileSync(file,"utf8"));}catch{return null;}};
 const number=x=>Number.isFinite(Number(x))?Number(x):0;
-const dateLabel=x=>{const d=new Date(x||0);return Number.isFinite(d.getTime())?d.toISOString().replace("T"," ").slice(0,19)+" UTC":"Not recorded";};
+const dateLabel=x=>{if(!x)return "Not recorded";const d=new Date(x);return Number.isFinite(d.getTime())?d.toISOString().replace("T"," ").slice(0,19)+" UTC":"Not recorded";};
 const statusLabel=(s)=>s==="healthy"?"Healthy":s==="stale"?"Overdue":s==="degraded"?"Degraded":"Not verified";
 const textRow=(title,value)=>'<div class="backup-item"><span>'+escape(title)+'</span><strong>'+escape(value)+'</strong></div>';
 const badge=(value)=>'<span class="backup-status '+escape(value)+'">'+escape(statusLabel(value))+'</span>';
@@ -52,7 +52,7 @@ export function backupOperationsSnapshot(directory,env=process.env,when=Date.now
  const secondaryVerified=Boolean(mirror?.verifiedAt&&
    when-Date.parse(mirror.verifiedAt)<dueMs);
  const required=env.TGL_BACKUP_REQUIRE_SECONDARY==="1";
- const status=required&&!secondaryVerified?"degraded":base;
+ const status=(required||secondaryConfigured)&&!secondaryVerified&&base==="healthy"?"degraded":base;
  const policy=readBackupPolicy(directory,env);
  const events=Array.isArray(ops.history)?ops.history.slice(-20).reverse().filter(x=>x&&typeof x==="object"):[];
  return {status,ageHours:Number.isFinite(ageMs)?Math.max(0,Math.round(ageMs/360000)/10):null,
