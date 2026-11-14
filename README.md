@@ -51,7 +51,7 @@ Then visit `http://localhost:8080`. For visual-design reviews only, add `?previe
 
 ## Deployment
 
-**No Netlify site, deployment, redirects, domains, or secrets are configured by this repository.** When you choose to deploy later, connect GitHub to Netlify, set the publish directory to the repository root, and omit the build command. Ensure the launch gates above are met.
+**Current public status (November 2026):** Netlify site `thegreenlocker` serves the non-transactional prelaunch brand prototype at https://thegreenlocker.com from the `main` branch. Its cosmetic 21+ acknowledgement is not a regulated retail age/ID check. The private, authenticated assortments and admin studio run separately on Railway's `staging-preview` branch and must not be bundled into the public Netlify site. A reviewed `_headers` file applies restrictive CSP, browser security headers, and noindex instructions on the next Netlify deployment after merge. No commerce, fulfillment, payments or order entry are implemented.
 
 ## Developer notes
 
