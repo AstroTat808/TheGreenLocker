@@ -12,6 +12,14 @@
  const MAX_SIDE=1600;
  const WEBP_MAX=2*1024*1024;
  const IMAGE_TYPES=new Set(["image/png","image/jpeg","image/webp"]);
+ // Calling location.assign() with the exact same URL is a same-document
+ // navigation, NOT a refresh. Repeated uploads used to display stale photos.
+ const refreshEditor=(notice,slot)=>{
+  const target="/admin/assortment?notice="+encodeURIComponent(notice)+"#edit-"+encodeURIComponent(slot);
+  if(window.location.href===new URL(target,window.location.href).href)window.location.reload();
+  else window.location.assign(target);
+ };
+
 
  // Browsers can reattach ICC color profiles even to a newly encoded canvas.
  // Strip those container chunks and their VP8X flags so EXIF, XMP, ICC and
@@ -112,7 +120,7 @@
     if(response.status===409)throw Error("Another edit changed this slot. Refresh and try again.");
     if(!response.ok)throw Error((await response.text()).slice(0,170)||"Image upload was rejected.");
     if(label)label.textContent="Artwork uploaded. Reloading the latest concept…";
-    window.location.assign("/admin/assortment?notice=Artwork%20uploaded#edit-"+encodeURIComponent(slot));
+    refreshEditor("Artwork uploaded",slot);
    }catch(error){
     if(label)label.textContent=error?.message||"Unable to upload image.";
     button.disabled=false;button.textContent="Optimize & upload image";
@@ -184,7 +192,7 @@
    try{
     await saveRequest(gallery,endpoint,payload);
     notify(message+" Refreshing the current gallery…");
-    window.location.assign("/admin/assortment?notice=Gallery%20updated#edit-"+encodeURIComponent(gallery.dataset.slot));
+    refreshEditor("Gallery updated",gallery.dataset.slot);
    }catch(error){
     notify(error?.message||"Unable to save changes.");
    }finally{saving=false;}
