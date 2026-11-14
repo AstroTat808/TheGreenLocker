@@ -9,6 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import {randomBytes} from "node:crypto";
 import {CONCEPT_COLLECTIONS} from "./catalog-collections.mjs";
+import {installGallery,galleryFor,galleriesForAll,appendGalleryImage,removeGalleryImage,
+ reorderGallery,setGalleryCaption,MAX_GALLERY_IMAGES} from "./assortment-media.mjs";
 
 const escapeHtml=x=>String(x??"").replace(/[&<>"']/g,ch=>({
  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
@@ -51,14 +53,16 @@ export function installAssortment(db){
     s.initialVisible?1:0,now());
  db.prepare("INSERT OR IGNORE INTO collection_branding(key,value,updated_at) VALUES('vape_brand',?,?)")
    .run("Brand name pending",now());
+ installGallery(db);
 }
 
 export function readAssortment(db){
  const rows=db.prepare("SELECT id,family,slot_order,title,description,notes,image_key,preview_visible,version,updated_at FROM collection_concepts ORDER BY family,slot_order").all();
  const entries={botanicals:[],vapes:[],treats:[]};
+ const galleries=galleriesForAll(db);
  for(const row of rows){
   if(!slotMap.has(row.id)||row.family!==slotMap.get(row.id).family)continue;
-  entries[row.family].push(row);
+  entries[row.family].push({...row,images:galleries.get(row.id)||[]});
  }
  const brand=db.prepare("SELECT value,version,updated_at FROM collection_branding WHERE key='vape_brand'").get();
  return {entries,brand:brand||{value:"Brand name pending",version:1}};
@@ -172,6 +176,25 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
     const image=row.image_key&&keyValid(row.image_key)
       ?'<img src="/concept-media/'+row.image_key+'" alt="Uploaded concept artwork for '+escapeHtml(row.title)+'" loading="lazy">'
       :'<img src="/assets/collection-'+(family==="botanicals"?"botanical":family==="vapes"?"vape":"treat")+'.svg" alt="Original gold and emerald packaging concept" loading="lazy">';
+    const images=row.images||[];
+    const galleryMarkup=images.map((item,i)=>'<li draggable="true" class="assortment-gallery-item" data-photo-id="'+item.id+'">'+
+      '<span class="assortment-gallery-handle" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'+
+      '<img loading="lazy" src="/concept-media/'+item.file_key+'" alt="'+escapeHtml(item.alt_text||("Concept image "+(i+1)))+'">'+
+      '<div class="assortment-gallery-fields"><span class="assortment-gallery-position">'+(i===0?'Cover image':'Image '+(i+1))+'</span>'+
+      '<label>Image description<input maxlength="140" class="assortment-gallery-caption" aria-label="Description for image '+(i+1)+'" value="'+escapeHtml(item.alt_text)+'"></label>'+
+      '<div class="assortment-gallery-actions">'+
+       '<button type="button" data-gallery-action="up" aria-label="Move image '+(i+1)+' up"'+(i===0?' disabled':'')+'>↑</button>'+
+       '<button type="button" data-gallery-action="down" aria-label="Move image '+(i+1)+' down"'+(i===images.length-1?' disabled':'')+'>↓</button>'+
+       '<button type="button" data-gallery-action="cover" aria-label="Make image '+(i+1)+' the cover"'+(i===0?' disabled':'')+'>Cover</button>'+
+       '<button type="button" data-gallery-action="caption" aria-label="Save description for image '+(i+1)+'">Save label</button>'+
+       '<button type="button" data-gallery-action="delete" class="assortment-gallery-danger" aria-label="Remove image '+(i+1)+'">Remove</button>'+
+      '</div></div></li>').join("");
+    const galleryPanel='<section class="assortment-gallery" data-gallery data-slot="'+row.id+'" data-version="'+row.version+'" data-csrf="'+csrf+'">'+
+      '<h4>Image gallery <span class="assortment-gallery-counter">'+images.length+' / '+MAX_GALLERY_IMAGES+'</span></h4>'+
+      '<p>Drag to change image order, or use arrows on mobile. The first image is the shop cover.</p>'+
+      '<ol class="assortment-gallery-list">'+(galleryMarkup||'<li class="assortment-gallery-empty">No uploaded images yet. Original art will show until you add a photo.</li>')+'</ol>'+
+      (images.length>1?'<button class="private-button assortment-gallery-save" type="button">Save image order</button>':'')+
+      '<p class="assortment-gallery-status" role="status" aria-live="polite"></p></section>';
     return '<article class="assortment-editor-card" id="edit-'+row.id+'">'+
       '<div class="assortment-editor-thumb">'+image+
       '<span>'+String(row.slot_order).padStart(2,"0")+'</span></div>'+
@@ -190,14 +213,12 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
       '</form>'+
       '<form data-concept-upload data-slot="'+row.id+'" data-version="'+row.version+'" class="assortment-upload-form">'+
        '<input type="hidden" name="csrf" value="'+csrf+'">'+
-       '<label>Replace image (PNG/JPEG/WebP, up to 12MB before optimization)<input type="file" accept="image/png,image/jpeg,image/webp" required></label>'+
+       '<label>Add photo (PNG/JPEG/WebP, up to 12MB before optimization)<input type="file" accept="image/png,image/jpeg,image/webp" required></label>'+
        '<button type="submit" class="private-button">Optimize &amp; upload image</button>'+
        '<p class="upload-result" role="status" aria-live="polite"></p>'+
       '</form>'+
-      (row.image_key?'<form method="post" action="/admin/assortment/image/remove" class="assortment-remove-form">'+
-        '<input type="hidden" name="csrf" value="'+csrf+'"><input type="hidden" name="slot_id" value="'+row.id+'">'+
-        '<input type="hidden" name="version" value="'+row.version+'"><button type="submit">Remove custom image</button></form>':'')+
-      '<p class="assortment-editor-hint">Artwork is stored on the private Railway volume; no stock, price, delivery or checkout changes.</p>'+
+      galleryPanel+
+      '<p class="assortment-editor-hint">Up to eight private images per concept. No stock, price, delivery or checkout changes.</p>'+
       '</details></div></article>';
    }).join("");
    return '<section class="assortment-editor-section" id="edit-'+family+'">'+
@@ -242,7 +263,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
   if(req.method!=="GET"||!pathname.startsWith("/concept-media/"))return false;
   const key=pathname.slice("/concept-media/".length);
   if(!keyValid(key))return respond(res,404,"Not found","text/plain; charset=utf-8"),true;
-  const row=db.prepare("SELECT 1 FROM collection_concepts WHERE image_key=?").get(key);
+  const row=db.prepare("SELECT 1 FROM collection_media WHERE file_key=?").get(key);
   if(!row)return respond(res,404,"Not found","text/plain; charset=utf-8"),true;
   try {
    const data=fs.readFileSync(rel(key));
@@ -259,7 +280,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
    return true;
   }
   if(method==="GET"&&pathname==="/admin/assortment"){
-   const possible=new Set(["Concept saved","Brand name saved","Artwork uploaded","Artwork removed"]);
+   const possible=new Set(["Concept saved","Brand name saved","Artwork uploaded","Artwork removed","Gallery updated","Image details saved"]);
    const message=url.searchParams.get("notice");
    respond(res,200,renderEditor({user,notice:possible.has(message)?message:""}));
    return true;
