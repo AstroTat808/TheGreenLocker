@@ -386,14 +386,22 @@ export function startScheduledOffsiteBackups({guard,dataDirectory,dbPath,env=pro
  hexKey(masterHex);
  const store=createS3Store(env);
  const secondaryConfigured=!!env.TGL_BACKUP_SECONDARY_S3_ENDPOINT;
- const secondary=secondaryConfigured?createS3Store(env,"TGL_BACKUP_SECONDARY_S3_"):null;
- if(env.TGL_BACKUP_REQUIRE_SECONDARY==="1"&&!secondary)
-  throw Error("Second independent encrypted backup is required but missing.");
+ let secondary=null,secondaryConfigurationError=null;
+ try{
+  if(secondaryConfigured)secondary=createS3Store(env,"TGL_BACKUP_SECONDARY_S3_");
+  if(env.TGL_BACKUP_REQUIRE_SECONDARY==="1"&&!secondary)
+   throw Error("Second independent encrypted backup is required but missing.");
+ }catch(error){
+  // A broken second provider should degrade backups and raise an alert,
+  // not bring down the private member application.
+  secondaryConfigurationError=error;
+ }
  let busy=false,stopped=false;
  const check=async()=>{
   if(stopped||busy)return;
   busy=true;
   try{
+   if(secondaryConfigurationError)throw secondaryConfigurationError;
    const result=await guard.exclusive(()=>runAndVerifyOffsiteBackup({
     dataDirectory,dbPath,masterHex,objectStore:store,secondaryStore:secondary,
     requireSecondary:env.TGL_BACKUP_REQUIRE_SECONDARY==="1"
