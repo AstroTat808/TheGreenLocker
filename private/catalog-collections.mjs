@@ -27,14 +27,33 @@ function slots(assortment,family){
  return base.flatMap((x,i)=>{
   const row=rows.get(x.id);
   if(!row||row.preview_visible!==1)return [];
-  return [{...x,title:row.title,description:row.description,note:row.description,slot_order:i+1,image_key:mediaKey(row.image_key)}];
+  return [{...x,title:row.title,description:row.description,note:row.description,slot_order:i+1,
+    image_key:mediaKey(row.image_key),
+    images:(Array.isArray(row.images)?row.images:[]).filter(photo=>mediaKey(photo.file_key)).slice(0,8)}];
  });
 }
-function conceptImage(row,family){
- const source=row.image_key?"/concept-media/"+row.image_key:
-   "/assets/collection-"+(family==="botanicals"?"botanical":family==="vapes"?"vape":"treat")+".svg";
- return '<img class="collection-art-photo" src="'+source+'" alt="Illustrative '+html(family)+' packaging artwork for '+html(row.title)+'" loading="lazy" decoding="async">';
+function galleryImages(row,family,compact=false){
+ const photos=Array.isArray(row.images)?row.images:[];
+ const valid=photos.filter(item=>mediaKey(item.file_key));
+ const assets=valid.length?valid.map((item,i)=>({
+   src:"/concept-media/"+item.file_key,
+   alt:item.alt_text||"Concept artwork "+(i+1)+" for "+row.title
+ })):[{src:row.image_key?"/concept-media/"+row.image_key:
+  "/assets/collection-"+(family==="botanicals"?"botanical":family==="vapes"?"vape":"treat")+".svg",
+  alt:"Illustrative "+family+" packaging artwork for "+row.title}];
+ const imageClass=compact?"collection-flavor-thumb":"collection-art-photo";
+ const tags=assets.map((item,i)=>
+  '<img class="'+imageClass+'" data-concept-image data-index="'+i+'"'+(i?' hidden':'')+
+  ' src="'+item.src+'" alt="'+html(item.alt)+'" loading="lazy" decoding="async">').join("");
+ const controls=assets.length>1?
+  '<div class="concept-gallery-tools" role="group" aria-label="View more '+html(row.title)+' concept images">'+
+   '<button type="button" data-gallery-dir="-1" aria-label="Previous '+html(row.title)+' image">‹</button>'+
+   '<span data-gallery-counter aria-live="polite">1 / '+assets.length+'</span>'+
+   '<button type="button" data-gallery-dir="1" aria-label="Next '+html(row.title)+' image">›</button></div>':"";
+ return '<div class="'+(compact?'collection-flavor-gallery':'collection-image-gallery')+
+  '" data-concept-gallery>'+tags+controls+'</div>';
 }
+function conceptImage(row,family){return galleryImages(row,family);}
 const empty=label=>'<p class="collection-empty">No '+html(label)+' are visible in this private preview. An administrator can enable draft slots in the Assortment Studio.</p>';
 export function renderCollectionConcepts(assortment=null){
  const botanicals=slots(assortment,"botanicals");
@@ -54,7 +73,7 @@ export function renderCollectionConcepts(assortment=null){
  const flavors=vapes.map(item=>
   '<li class="collection-flavor" aria-label="'+html(item.title)+'">'+
    '<span aria-hidden="true">'+String(item.slot_order).padStart(2,"0")+'</span>'+
-   (item.image_key?'<img class="collection-flavor-thumb" src="/concept-media/'+item.image_key+'" alt="" loading="lazy">':'')+
+   (item.images?.length||item.image_key?galleryImages(item,"vapes",true):"")+
    '<strong>'+html(item.title)+'</strong>'+
    '<small>'+html(item.description||"Unspecified concept")+'</small></li>'
  ).join("");
