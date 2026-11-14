@@ -416,6 +416,9 @@ test("administrator can manage draft products and stock without sales actions",a
    secondForm.getByRole("button",{name:/Optimize & upload image/}).click()
  ]);
  await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
+ // The first upload left the same flash notice; wait for the second database-backed
+ // gallery rendering before interacting, not merely for the stale flash message.
+ await expect(page.locator(slotRoot+" [data-photo-id]")).toHaveCount(2);
  await page.locator(slotRoot+" summary").click();
  const panel=page.locator(slotRoot+" [data-gallery]");
  await expect(panel.locator("[data-photo-id]")).toHaveCount(2);
