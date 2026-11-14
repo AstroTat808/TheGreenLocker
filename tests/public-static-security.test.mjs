@@ -27,4 +27,7 @@ test("public prototype has no inline script, inline style or dynamic HTML inject
   assert.match(css, /\.preview-unavailable\{/);
   assert.match(html, /not an active retail store/i);
   assert.match(html, /noindex, nofollow/);
+  assert.match(html, /assets\\/shield-logo\\.webp/);
+  assert.match(html, /assets\\/shield-favicon\\.png/);
+  assert.doesNotMatch(html, /approved-logo\\.png|assets\\/logo\\.svg|circular golden seal/i);
 });
