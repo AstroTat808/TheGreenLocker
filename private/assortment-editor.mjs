@@ -259,6 +259,20 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
   const code=Number.isInteger(err?.status)?err.status:400;
   return respond(res,code,err?.message||"Unable to save assortment changes","text/plain; charset=utf-8");
  }
+ async function galleryJson(req){
+  if(!/^application\/json(?:;|$)/i.test(req.headers["content-type"]||""))
+   throw new AssortmentInvalid("Expected JSON request");
+  let size=0;const parts=[];
+  for await (const chunk of req){
+   size+=chunk.length;
+   if(size>16384)throw new AssortmentInvalid("Gallery request too large");
+   parts.push(chunk);
+  }
+  let value;
+  try{value=JSON.parse(Buffer.concat(parts).toString("utf8"));}catch{throw new AssortmentInvalid("Invalid JSON");}
+  if(!value||Array.isArray(value)||typeof value!=="object")throw new AssortmentInvalid("Invalid request data");
+  return value;
+ }
  async function mediaRoute({req,res,pathname}){
   if(req.method!=="GET"||!pathname.startsWith("/concept-media/"))return false;
   const key=pathname.slice("/concept-media/".length);
@@ -308,21 +322,54 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
    }catch(e){handleError(res,e);}
    return true;
   }
+  // Each gallery modification is admin+MFA+CSRF protected by the existing
+  // server routing, then checked against the slot's exact revision.
+  if(method==="POST"&&[
+    "/admin/assortment/gallery/order",
+    "/admin/assortment/gallery/caption",
+    "/admin/assortment/gallery/delete"
+  ].includes(pathname)){
+   if(req.headers["x-csrf-token"]!==user.csrf){
+    respond(res,403,"Invalid CSRF token","text/plain; charset=utf-8");
+    return true;
+   }
+   try{
+    const body=await galleryJson(req);
+    const slotId=String(body.slot_id||"");
+    if(!checkedSlot(slotId))throw new AssortmentInvalid("Unknown gallery slot");
+    const common={slotId,expectedVersion:body.version,editorId:user.id};
+    let result;
+    if(pathname.endsWith("/order")){
+     result=reorderGallery(db,{...common,ids:body.ids});
+    }else if(pathname.endsWith("/caption")){
+     result=setGalleryCaption(db,{...common,imageId:body.image_id,description:body.description});
+    }else{
+     result=removeGalleryImage(db,{...common,imageId:body.image_id});
+     if(result.removedKey&&keyValid(result.removedKey)){
+      try{fs.unlinkSync(rel(result.removedKey));}catch{}
+     }
+    }
+    respond(res,200,JSON.stringify({ok:true,version:result.version}),
+      "application/json; charset=utf-8");
+   }catch(e){handleError(res,e);}
+   return true;
+  }
+  // Legacy single-image removal keeps backward-compatible behavior by
+  // removing the first (cover) gallery item, not erasing the whole collection.
   if(method==="POST"&&pathname==="/admin/assortment/image/remove"){
    const params=await formBody(req);
-   if(!formCsrf(params,user))return respond(res,403,"Invalid CSRF token","text/plain; charset=utf-8"),true;
+   if(!formCsrf(params,user)){
+    respond(res,403,"Invalid CSRF token","text/plain; charset=utf-8");return true;
+   }
    try{
-    const id=clean(params.get("slot_id")),v=validVersion(params.get("version"));
-    if(!checkedSlot(id)||!v)throw new AssortmentInvalid();
-    const previous=transactional(db,()=>{
-     const current=db.prepare("SELECT image_key,version FROM collection_concepts WHERE id=?").get(id);
-     if(!current||current.version!==v)throw new AssortmentConflict();
-     db.prepare("UPDATE collection_concepts SET image_key=NULL,version=version+1,updated_by=?,updated_at=? WHERE id=?")
-      .run(user.id,now(),id);
-     doAudit(db,{id,userId:user.id,kind:"image_removed",version:v+1});
-     return current.image_key;
+    const id=clean(params.get("slot_id"));
+    if(!checkedSlot(id))throw new AssortmentInvalid();
+    const first=galleryFor(db,id)[0];
+    if(!first)throw new AssortmentInvalid("No custom image to remove");
+    const result=removeGalleryImage(db,{
+     slotId:id,expectedVersion:params.get("version"),imageId:first.id,editorId:user.id
     });
-    if(previous&&keyValid(previous)){try{fs.unlinkSync(rel(previous));}catch{}}
+    if(keyValid(result.removedKey))try{fs.unlinkSync(rel(result.removedKey));}catch{}
     redirectMessage(res,"Artwork removed",id);
    }catch(e){handleError(res,e);}
    return true;
@@ -335,24 +382,20 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
    if(!checkedSlot(id)||!version||!allowed((req.headers["content-type"]||"").split(";")[0])){
     respond(res,400,"Invalid slot or artwork format","text/plain; charset=utf-8");return true;
    }
-   let key,previous;
+   let key;
    try{
     const bytes=await bodyBytes(req);
     if(!webpDimensions(bytes))throw new AssortmentInvalid("Upload a valid WebP image no larger than 2400px and 2 MB.");
     fs.mkdirSync(fileDirectory,{recursive:true,mode:0o700});
     key=randomBytes(16).toString("hex")+".webp";
     fs.writeFileSync(rel(key),bytes,{flag:"wx",mode:0o600});
-    previous=transactional(db,()=>{
-     const existing=db.prepare("SELECT image_key,version FROM collection_concepts WHERE id=?").get(id);
-     if(!existing||existing.version!==version)throw new AssortmentConflict();
-     db.prepare("UPDATE collection_concepts SET image_key=?,version=version+1,updated_by=?,updated_at=? WHERE id=?")
-      .run(key,user.id,now(),id);
-     doAudit(db,{id,userId:user.id,kind:"image",version:version+1});
-     return existing.image_key;
+    const newMedia=appendGalleryImage(db,{
+     slotId:id,expectedVersion:version,key,editorId:user.id
     });
-    if(previous&&keyValid(previous))try{fs.unlinkSync(rel(previous));}catch{}
-    respond(res,201,JSON.stringify({ok:true,version:version+1,src:"/concept-media/"+key}),
-      "application/json; charset=utf-8");
+    respond(res,201,JSON.stringify({
+      ok:true,version:newMedia.version,id:newMedia.id,count:newMedia.count,
+      src:"/concept-media/"+key
+    }),"application/json; charset=utf-8");
    }catch(e){
     if(key)try{fs.unlinkSync(rel(key));}catch{}
     handleError(res,e);
