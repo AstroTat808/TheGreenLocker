@@ -8,6 +8,7 @@ import { randomBytes, scryptSync } from "node:crypto";
 import { createApp } from "../private/server.mjs";
 import { LOCKER_FILE_NAMES } from "../private/locker-files.mjs";
 import { enforcePreviewGate } from "./preview-gate.mjs";
+import {installBackupWriteGuard,startScheduledOffsiteBackups} from "./offsite-backup.mjs";
 
 if (process.env.NODE_ENV === "production" || ["staging","production"].includes(process.env.TGL_ENV)) {
   throw new Error("Workshop preview fixtures are development-only; staging and production are blocked.");
@@ -46,6 +47,8 @@ process.env.TGL_DB_PATH=path.join(dir,"preview.sqlite");
 process.env.TGL_OUTBOX_PATH=path.join(dir,"email-outbox.ndjson");
 const origin=process.env.WORKSHOP_PREVIEW_ORIGIN || ("http://127.0.0.1:"+port);
 const {server,db}=createApp({inviteCode:fixture.inviteCode,dbPath:process.env.TGL_DB_PATH,publicOrigin:origin});
+// Quiesce all authenticated writes during the consistent daily data snapshot.
+const backupGuard=installBackupWriteGuard(server);
 if(host === "0.0.0.0")enforcePreviewGate(server);
 
 function seedUser(email,password,role) {
@@ -107,4 +110,5 @@ server.listen(port,host,()=>{
  console.log("Development email outbox: "+process.env.TGL_OUTBOX_PATH);
  console.log("DO NOT PUBLISH THIS DEV SERVER OR ENABLE SALES.");
  console.log("Credentials and sample data are stored in a gitignored local directory.\n");
+ startScheduledOffsiteBackups({guard:backupGuard,dataDirectory:dir,dbPath:process.env.TGL_DB_PATH});
 });
