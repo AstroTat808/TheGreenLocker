@@ -102,12 +102,13 @@ test("two separately verified encrypted replicas survive primary corruption and 
  fs.writeFileSync(path.join(art,fileName),sample);
  appendGalleryImage(db,{slotId:"botanical-01",expectedVersion:1,key:fileName,editorId:uid});
  fs.writeFileSync(path.join(data,"credentials.json"),JSON.stringify(fixture));
+ let failMirrorRead=false;
  const stores=new Map();
  function mock(name){
   const objects=new Map();stores.set(name,objects);
   return {
    async putFile(key,filename){objects.set(key,fs.readFileSync(filename));},
-   async getFile(key,filename){if(!objects.has(key))throw Error("not found");fs.writeFileSync(filename,objects.get(key),{flag:"wx"});},
+   async getFile(key,filename){if(name==="secondary"&&failMirrorRead)throw Error("not found");if(!objects.has(key))throw Error("not found");fs.writeFileSync(filename,objects.get(key),{flag:"wx"});},
    async listFiles(){return [...objects.keys()].map(key=>({key,lastModified:"2026-01-01T00:00:00Z"}));},
    async deleteFile(key){objects.delete(key);}
   };
@@ -129,7 +130,7 @@ test("two separately verified encrypted replicas survive primary corruption and 
   policy:{retentionDays:30,minimumCopies:14,mode:"enforce"},env:{TGL_BACKUP_RETENTION_ALLOW_DELETE:"1"}});
  assert.equal(cleanup.deleted,0);
  assert.equal(stores.get("primary").size,1);
- stores.get("secondary").delete(result.objectKey);
+ failMirrorRead=true;
  await assert.rejects(()=>runAndVerifyOffsiteBackup({
   dataDirectory:data,dbPath,masterHex:key,objectStore:primary,
   secondaryStore:secondary,requireSecondary:true,force:true
