@@ -161,28 +161,29 @@ export async function restoreEncryptedBackup({encrypted,masterHex,targetDirector
 }
 const awsEncode=value=>encodeURIComponent(value).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());
 const hmac=(key,value)=>createHmac("sha256",key).update(value).digest();
-function s3Configuration(env){
- const endpoint=new URL(env.TGL_BACKUP_S3_ENDPOINT||"");
+function s3Configuration(env,prefix="TGL_BACKUP_S3_"){
+ const value=name=>env[prefix+name];
+ const endpoint=new URL(value("ENDPOINT")||"");
  if(endpoint.protocol!=="https:"||endpoint.username||endpoint.password||endpoint.search||
    endpoint.hash||endpoint.pathname!=="/")throw Error("Invalid HTTPS S3 backup endpoint.");
- const bucket=env.TGL_BACKUP_S3_BUCKET,region=env.TGL_BACKUP_S3_REGION;
- const keyId=env.TGL_BACKUP_S3_ACCESS_KEY_ID,secret=env.TGL_BACKUP_S3_SECRET_ACCESS_KEY;
- const style=env.TGL_BACKUP_S3_STYLE;
+ const bucket=value("BUCKET"),region=value("REGION");
+ const keyId=value("ACCESS_KEY_ID"),secret=value("SECRET_ACCESS_KEY");
+ const style=value("STYLE");
  if(!/^[a-z0-9][a-z0-9.-]{2,100}$/.test(bucket||"")||!region||!keyId||!secret||
     !["path","virtual-host"].includes(style))throw Error("Backup object storage is not fully configured.");
  return {endpoint,bucket,region,keyId,secret,style};
 }
-function signedS3({config,method,objectKey,payloadSha}){
- if(!backupName.test(objectKey))throw Error("Invalid private backup key.");
+function signedS3({config,method,objectKey="",payloadSha,query=""}){
+ if(objectKey&&!backupName.test(objectKey))throw Error("Invalid private backup key.");
  const {endpoint,bucket,region,keyId,secret,style}=config;
  const uri="/"+(style==="path"?awsEncode(bucket)+"/":"")+
-    objectKey.split("/").map(awsEncode).join("/");
+    (objectKey?objectKey.split("/").map(awsEncode).join("/"):"");
  const host=(style==="virtual-host"?bucket+".":"")+endpoint.host;
- const url=new URL("https://"+host+uri);
+ const url=new URL("https://"+host+uri+(query?"?"+query:""));
  const stamp=new Date().toISOString().replace(/[:-]|\.\d{3}/g,""),date=stamp.slice(0,8);
  const headers="host:"+host+"\n"+"x-amz-content-sha256:"+payloadSha+"\n"+"x-amz-date:"+stamp+"\n";
  const signedNames="host;x-amz-content-sha256;x-amz-date";
- const canonical=[method,uri,"",headers,signedNames,payloadSha].join("\n");
+ const canonical=[method,uri,query,headers,signedNames,payloadSha].join("\n");
  const scope=[date,region,"s3","aws4_request"].join("/");
  const toSign=["AWS4-HMAC-SHA256",stamp,scope,createHash("sha256").update(canonical).digest("hex")].join("\n");
  const kDate=hmac("AWS4"+secret,date),kRegion=hmac(kDate,region),
@@ -192,8 +193,13 @@ function signedS3({config,method,objectKey,payloadSha}){
   ", SignedHeaders="+signedNames+", Signature="+signature;
  return {url,headers:{"x-amz-content-sha256":payloadSha,"x-amz-date":stamp,"Authorization":authorization}};
 }
-export function createS3Store(env=process.env){
- const config=s3Configuration(env);
+const xmlText=(xml,key)=>{
+ const hit=xml.match(new RegExp("<"+key+">([\\s\\S]*?)<\\/"+key+">"));
+ return hit?hit[1].replace(/&amp;/g,"&").replace(/&lt;/g,"<")
+   .replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'"):null;
+};
+export function createS3Store(env=process.env,prefix="TGL_BACKUP_S3_"){
+ const config=s3Configuration(env,prefix);
  return {
   async putFile(objectKey,file){
    const signed=signedS3({config,method:"PUT",objectKey,payloadSha:shaFile(file)});
@@ -209,6 +215,34 @@ export function createS3Store(env=process.env){
    const response=await fetch(signed.url,{method:"GET",headers:signed.headers,signal:AbortSignal.timeout(120000)});
    if(!response.ok||!response.body){await response.body?.cancel();throw Error("S3 backup retrieval failed: HTTP "+response.status);}
    await pipeline(Readable.fromWeb(response.body),fs.createWriteStream(file,{flags:"wx",mode:0o600}));
+  },
+  async listFiles(){
+   const result=[];let continuation=null;
+   for(let page=0;page<100;page++){
+    const params=[["list-type","2"],["prefix","daily/"]];
+    if(continuation)params.push(["continuation-token",continuation]);
+    const query=params.sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>awsEncode(k)+"="+awsEncode(v)).join("&");
+    const signed=signedS3({config,method:"GET",payloadSha:EMPTY_SHA256,query});
+    const response=await fetch(signed.url,{method:"GET",headers:signed.headers,signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error("Backup list failed: HTTP "+response.status);
+    const xml=await response.text();
+    for(const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)){
+     const key=xmlText(match[1],"Key"),lastModified=xmlText(match[1],"LastModified");
+     if(!key||!lastModified)throw Error("Backup listing has incomplete metadata.");
+     if(backupName.test(key))result.push({key,lastModified});
+    }
+    if(xmlText(xml,"IsTruncated")!=="true")return result;
+    const token=xmlText(xml,"NextContinuationToken");
+    if(!token||token===continuation)throw Error("Backup listing pagination invalid.");
+    continuation=token;
+   }
+   throw Error("Backup listing exceeded safe pagination limit.");
+  },
+  async deleteFile(objectKey){
+   const signed=signedS3({config,method:"DELETE",objectKey,payloadSha:EMPTY_SHA256});
+   const response=await fetch(signed.url,{method:"DELETE",headers:signed.headers,signal:AbortSignal.timeout(15000)});
+   if(!response.ok)throw Error("Backup deletion rejected: HTTP "+response.status);
+   await response.body?.cancel();
   }
  };
 }
