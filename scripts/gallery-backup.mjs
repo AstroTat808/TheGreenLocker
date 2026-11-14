@@ -68,7 +68,7 @@ export async function createGallerySnapshot({dbPath,dataDirectory,destination}){
   for(const key of refs){
    if(!imageKey.test(key))throw Error("Unsafe image key in snapshot.");
    const image=path.join(sourceDir,"concept-art",key);
-   if(!fs.statSync(image).isFile()||fs.statSync(image).size>2*1024*1024)
+   if(!fs.existsSync(image)||!fs.statSync(image).isFile()||fs.statSync(image).size>2*1024*1024)
     throw Error("Missing or oversized gallery image: "+key);
    const output=path.join(dest,"concept-art",key);
    fs.copyFileSync(image,output,fs.constants.COPYFILE_EXCL);
