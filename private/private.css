@@ -1516,3 +1516,21 @@ body{
 @media(prefers-reduced-motion:reduce){
  .assortment-library-dialog::backdrop{backdrop-filter:none}
 }
+
+
+/* PR #16 mobile visual QA: full-width editorial cards on narrow phones,
+   with 44px image gallery navigation controls for touch accessibility. */
+@media(max-width:480px){
+ .collection-image-gallery>.concept-gallery-tools button{
+  width:44px;height:44px;min-width:44px;min-height:44px
+ }
+}
+@media(max-width:380px){
+ .collection-botanical-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ .collection-concept-botanical .collection-concept-art{aspect-ratio:1.38}
+ .collection-concept-botanical .collection-concept-details{padding:17px;gap:10px}
+ .collection-concept-botanical .collection-concept-details h3{font-size:24px;line-height:1.22}
+ .collection-concept-botanical .collection-concept-details p{
+  font-size:12px;line-height:1.7;min-height:0
+ }
+}
