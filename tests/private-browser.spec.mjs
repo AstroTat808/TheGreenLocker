@@ -401,7 +401,7 @@ test("administrator can manage draft products and stock without sales actions",a
  const secondForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
  await secondForm.locator('input[type="file"]').setInputFiles({
    name:"alternate.png",mimeType:"image/png",
-   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xAMBzt/a8AAAAAElFTkSuQmCC","base64")
+   buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64")
  });
  await secondForm.getByRole("button",{name:/Optimize & upload image/}).click();
  await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
