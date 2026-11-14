@@ -15,6 +15,7 @@ import {Readable} from "node:stream";
 import {fileURLToPath} from "node:url";
 import {DatabaseSync} from "node:sqlite";
 import {createGallerySnapshot,verifyGallerySnapshot} from "./gallery-backup.mjs";
+import {recordBackupEvent,dispatchBackupFailureAlert,readBackupPolicy} from "../private/backup-operations.mjs";
 
 const MAGIC=Buffer.from("TGLBK1","ascii");
 const HEADER_BYTES=MAGIC.length+16+12;
@@ -161,28 +162,29 @@ export async function restoreEncryptedBackup({encrypted,masterHex,targetDirector
 }
 const awsEncode=value=>encodeURIComponent(value).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());
 const hmac=(key,value)=>createHmac("sha256",key).update(value).digest();
-function s3Configuration(env){
- const endpoint=new URL(env.TGL_BACKUP_S3_ENDPOINT||"");
+function s3Configuration(env,prefix="TGL_BACKUP_S3_"){
+ const value=name=>env[prefix+name];
+ const endpoint=new URL(value("ENDPOINT")||"");
  if(endpoint.protocol!=="https:"||endpoint.username||endpoint.password||endpoint.search||
    endpoint.hash||endpoint.pathname!=="/")throw Error("Invalid HTTPS S3 backup endpoint.");
- const bucket=env.TGL_BACKUP_S3_BUCKET,region=env.TGL_BACKUP_S3_REGION;
- const keyId=env.TGL_BACKUP_S3_ACCESS_KEY_ID,secret=env.TGL_BACKUP_S3_SECRET_ACCESS_KEY;
- const style=env.TGL_BACKUP_S3_STYLE;
+ const bucket=value("BUCKET"),region=value("REGION");
+ const keyId=value("ACCESS_KEY_ID"),secret=value("SECRET_ACCESS_KEY");
+ const style=value("STYLE");
  if(!/^[a-z0-9][a-z0-9.-]{2,100}$/.test(bucket||"")||!region||!keyId||!secret||
     !["path","virtual-host"].includes(style))throw Error("Backup object storage is not fully configured.");
  return {endpoint,bucket,region,keyId,secret,style};
 }
-function signedS3({config,method,objectKey,payloadSha}){
- if(!backupName.test(objectKey))throw Error("Invalid private backup key.");
+function signedS3({config,method,objectKey="",payloadSha,query=""}){
+ if(objectKey&&!backupName.test(objectKey))throw Error("Invalid private backup key.");
  const {endpoint,bucket,region,keyId,secret,style}=config;
  const uri="/"+(style==="path"?awsEncode(bucket)+"/":"")+
-    objectKey.split("/").map(awsEncode).join("/");
+    (objectKey?objectKey.split("/").map(awsEncode).join("/"):"");
  const host=(style==="virtual-host"?bucket+".":"")+endpoint.host;
- const url=new URL("https://"+host+uri);
+ const url=new URL("https://"+host+uri+(query?"?"+query:""));
  const stamp=new Date().toISOString().replace(/[:-]|\.\d{3}/g,""),date=stamp.slice(0,8);
  const headers="host:"+host+"\n"+"x-amz-content-sha256:"+payloadSha+"\n"+"x-amz-date:"+stamp+"\n";
  const signedNames="host;x-amz-content-sha256;x-amz-date";
- const canonical=[method,uri,"",headers,signedNames,payloadSha].join("\n");
+ const canonical=[method,uri,query,headers,signedNames,payloadSha].join("\n");
  const scope=[date,region,"s3","aws4_request"].join("/");
  const toSign=["AWS4-HMAC-SHA256",stamp,scope,createHash("sha256").update(canonical).digest("hex")].join("\n");
  const kDate=hmac("AWS4"+secret,date),kRegion=hmac(kDate,region),
@@ -192,8 +194,13 @@ function signedS3({config,method,objectKey,payloadSha}){
   ", SignedHeaders="+signedNames+", Signature="+signature;
  return {url,headers:{"x-amz-content-sha256":payloadSha,"x-amz-date":stamp,"Authorization":authorization}};
 }
-export function createS3Store(env=process.env){
- const config=s3Configuration(env);
+const xmlText=(xml,key)=>{
+ const hit=xml.match(new RegExp("<"+key+">([\\s\\S]*?)<\\/"+key+">"));
+ return hit?hit[1].replace(/&amp;/g,"&").replace(/&lt;/g,"<")
+   .replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'"):null;
+};
+export function createS3Store(env=process.env,prefix="TGL_BACKUP_S3_"){
+ const config=s3Configuration(env,prefix);
  return {
   async putFile(objectKey,file){
    const signed=signedS3({config,method:"PUT",objectKey,payloadSha:shaFile(file)});
@@ -209,6 +216,34 @@ export function createS3Store(env=process.env){
    const response=await fetch(signed.url,{method:"GET",headers:signed.headers,signal:AbortSignal.timeout(120000)});
    if(!response.ok||!response.body){await response.body?.cancel();throw Error("S3 backup retrieval failed: HTTP "+response.status);}
    await pipeline(Readable.fromWeb(response.body),fs.createWriteStream(file,{flags:"wx",mode:0o600}));
+  },
+  async listFiles(){
+   const result=[];let continuation=null;
+   for(let page=0;page<100;page++){
+    const params=[["list-type","2"],["prefix","daily/"]];
+    if(continuation)params.push(["continuation-token",continuation]);
+    const query=params.sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>awsEncode(k)+"="+awsEncode(v)).join("&");
+    const signed=signedS3({config,method:"GET",payloadSha:EMPTY_SHA256,query});
+    const response=await fetch(signed.url,{method:"GET",headers:signed.headers,signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error("Backup list failed: HTTP "+response.status);
+    const xml=await response.text();
+    for(const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)){
+     const key=xmlText(match[1],"Key"),lastModified=xmlText(match[1],"LastModified");
+     if(!key||!lastModified)throw Error("Backup listing has incomplete metadata.");
+     if(backupName.test(key))result.push({key,lastModified});
+    }
+    if(xmlText(xml,"IsTruncated")!=="true")return result;
+    const token=xmlText(xml,"NextContinuationToken");
+    if(!token||token===continuation)throw Error("Backup listing pagination invalid.");
+    continuation=token;
+   }
+   throw Error("Backup listing exceeded safe pagination limit.");
+  },
+  async deleteFile(objectKey){
+   const signed=signedS3({config,method:"DELETE",objectKey,payloadSha:EMPTY_SHA256});
+   const response=await fetch(signed.url,{method:"DELETE",headers:signed.headers,signal:AbortSignal.timeout(15000)});
+   if(!response.ok)throw Error("Backup deletion rejected: HTTP "+response.status);
+   await response.body?.cancel();
   }
  };
 }
@@ -216,33 +251,99 @@ function backupStatus(dataDirectory){
  try{return safeJson(path.join(dataDirectory,"backup-status.json"));}
  catch{return null;}
 }
+const catalogFile=dir=>path.join(dir,"backup-catalog.json");
+function recentCatalog(dir){
+ try{
+  const data=JSON.parse(fs.readFileSync(catalogFile(dir),"utf8"));
+  return Array.isArray(data)?data.filter(x=>x&&backupName.test(x.objectKey||"")):[];
+ }catch{return [];}
+}
+function saveCatalog(dir,rows){
+ const target=catalogFile(dir),tmp=target+"."+randomBytes(6).toString("hex")+".tmp";
+ fs.writeFileSync(tmp,JSON.stringify(rows.slice(-1000),null,2)+"\n",{mode:0o600,flag:"wx"});
+ fs.renameSync(tmp,target);
+}
+export async function previewBackupRetention({dataDirectory,objectStore,secondaryStore=null,
+ retentionDays=90,minimumCopies=14}){
+ if(!Number.isInteger(retentionDays)||retentionDays<30||retentionDays>365)
+  throw Error("Invalid retention policy.");
+ const [primary,mirrored]=await Promise.all([
+  objectStore.listFiles(),secondaryStore?secondaryStore.listFiles():Promise.resolve([])
+ ]);
+ const mirrors=new Set(mirrored.map(x=>x.key));
+ const catalog=recentCatalog(dataDirectory);
+ const verified=new Set(catalog.filter(x=>x.secondaryVerified===true)
+   .map(x=>x.objectKey));
+ const protectedKeys=new Set(primary.slice().sort((a,b)=>
+   Date.parse(b.lastModified)-Date.parse(a.lastModified)).slice(0,minimumCopies).map(x=>x.key));
+ const latest=backupStatus(dataDirectory)?.objectKey;
+ if(latest)protectedKeys.add(latest);
+ const expiry=Date.now()-retentionDays*24*60*60*1000;
+ const eligible=primary.filter(x=>backupName.test(x.key)&&
+   Date.parse(x.lastModified)<expiry&&
+   Number.isFinite(Date.parse(x.lastModified))&&
+   verified.has(x.key)&&mirrors.has(x.key)&&!protectedKeys.has(x.key));
+ return {total:primary.length,mirrored:mirrored.length,eligible,
+  oldest:primary.map(x=>x.lastModified).sort()[0]||null,
+  retentionDays,minimumCopies,canDelete:!!secondaryStore};
+}
+export async function enforceBackupRetention({dataDirectory,objectStore,
+ secondaryStore=null,policy,env=process.env}){
+ const plan=await previewBackupRetention({dataDirectory,objectStore,secondaryStore,
+  retentionDays:policy.retentionDays,minimumCopies:policy.minimumCopies||14});
+ const authorized=policy.mode==="enforce"&&env.TGL_BACKUP_RETENTION_ALLOW_DELETE==="1"&&
+  env.TGL_BACKUP_ESCROW_CONFIRMED==="1"&&!!secondaryStore;
+ if(!authorized)return {...plan,deleted:0,mode:"dry-run"};
+ let count=0;
+ // Only delete the Railway primary copy when a verified matching archive remains
+ // in the separately administered secondary provider.
+ for(const item of plan.eligible.slice(0,30)){
+  await objectStore.deleteFile(item.key);
+  count++;
+ }
+ return {...plan,deleted:count,mode:"enforced"};
+}
 export async function runAndVerifyOffsiteBackup({
- dataDirectory,dbPath,masterHex,objectStore=createS3Store(),force=false
+ dataDirectory,dbPath,masterHex,objectStore=createS3Store(),
+ secondaryStore=null,requireSecondary=false,force=false
 }){
  if(!masterHex)throw Error("Backup encryption key is missing.");
  hexKey(masterHex);
+ if(requireSecondary&&!secondaryStore)throw Error("Independent backup destination is required but missing.");
  const status=backupStatus(dataDirectory);
- if(!force&&status?.verifiedAt&&Date.now()-Date.parse(status.verifiedAt)<24*60*60*1000)
+ const fresh=status?.verifiedAt&&Date.now()-Date.parse(status.verifiedAt)<24*60*60*1000;
+ if(!force&&fresh&&(!secondaryStore||status?.targets?.secondary?.verifiedAt))
   return {skipped:true,objectKey:status.objectKey};
  const work=temporary();
  try{
   const {sealed,encrypted}=await buildArchive({dbPath,dataDirectory,masterHex,work});
   const now=new Date().toISOString();
   const objectKey="daily/"+now.slice(0,10)+"/"+randomBytes(12).toString("hex")+".tglbk";
-  await objectStore.putFile(objectKey,sealed);
-  const downloaded=path.join(work,"downloaded.tglbk");
-  await objectStore.getFile(objectKey,downloaded);
-  if(shaFile(downloaded)!==encrypted.sha256)
-   throw Error("Remote encrypted object SHA-256 differs from the uploaded snapshot.");
-  const result=await restoreEncryptedBackup({
-   encrypted:downloaded,masterHex,targetDirectory:path.join(work,"isolated-restore")
-  });
+  async function verify(store,target){
+   await store.putFile(objectKey,sealed);
+   const downloaded=path.join(work,target+".tglbk");
+   await store.getFile(objectKey,downloaded);
+   if(shaFile(downloaded)!==encrypted.sha256)
+    throw Error("Remote encrypted object SHA-256 mismatch at "+target+".");
+   const result=await restoreEncryptedBackup({
+    encrypted:downloaded,masterHex,targetDirectory:path.join(work,target+"-restore")
+   });
+   return {verifiedAt:now,images:result.images,users:result.users,
+    encryptedSha256:encrypted.sha256};
+  }
+  const primary=await verify(objectStore,"primary");
+  const secondary=secondaryStore?await verify(secondaryStore,"secondary"):null;
   const payload={verifiedAt:now,objectKey,encryptedSha256:encrypted.sha256,
-    bytes:encrypted.bytes,images:result.images,users:result.users,credentialsIncluded:true};
+    bytes:encrypted.bytes,images:primary.images,users:primary.users,
+    credentialsIncluded:true,targets:{primary,secondary}};
   const marker=path.join(dataDirectory,"backup-status.json");
   const tmp=marker+"."+randomBytes(6).toString("hex")+".tmp";
   fs.writeFileSync(tmp,JSON.stringify(payload)+"\n",{mode:0o600,flag:"wx"});
   fs.renameSync(tmp,marker);
+  const catalog=recentCatalog(dataDirectory);
+  catalog.push({objectKey,verifiedAt:now,sha256:encrypted.sha256,
+   primaryVerified:true,secondaryVerified:!!secondary});
+  saveCatalog(dataDirectory,catalog);
   return payload;
  }finally{cleanUp(work);}
 }
@@ -284,18 +385,55 @@ export function startScheduledOffsiteBackups({guard,dataDirectory,dbPath,env=pro
  const masterHex=env.TGL_BACKUP_ENCRYPTION_KEY;
  hexKey(masterHex);
  const store=createS3Store(env);
+ const secondaryConfigured=!!env.TGL_BACKUP_SECONDARY_S3_ENDPOINT;
+ let secondary=null,secondaryConfigurationError=null;
+ try{
+  if(secondaryConfigured)secondary=createS3Store(env,"TGL_BACKUP_SECONDARY_S3_");
+  if(env.TGL_BACKUP_REQUIRE_SECONDARY==="1"&&!secondary)
+   throw Error("Second independent encrypted backup is required but missing.");
+ }catch(error){
+  // A broken second provider should degrade backups and raise an alert,
+  // not bring down the private member application.
+  secondaryConfigurationError=error;
+ }
  let busy=false,stopped=false;
  const check=async()=>{
   if(stopped||busy)return;
   busy=true;
   try{
+   if(secondaryConfigurationError)throw secondaryConfigurationError;
+   const bootstrap=!fs.existsSync(path.join(dataDirectory,"backup-operations.json"));
    const result=await guard.exclusive(()=>runAndVerifyOffsiteBackup({
-    dataDirectory,dbPath,masterHex,objectStore:store
+    dataDirectory,dbPath,masterHex,objectStore:store,secondaryStore:secondary,
+    requireSecondary:env.TGL_BACKUP_REQUIRE_SECONDARY==="1",force:bootstrap
    }));
-   if(!result.skipped)console.info("Offsite backup verified:",result.objectKey,
-     "images:",result.images,"users:",result.users);
-  }catch(e){console.error("Offsite backup failure:",e instanceof Error?e.message:"Unknown error");}
-  finally{busy=false;}
+   if(!result.skipped){
+    recordBackupEvent(dataDirectory,{type:"verified",target:secondary?"dual":"railway",
+      code:secondary?"TWO_RESTORES":"PRIMARY_RESTORE"});
+    console.info("Offsite backup verified:",result.objectKey,
+     "images:",result.images,"users:",result.users,
+     "independent:",secondary?"verified":"not-configured");
+    try{
+     const plan=await enforceBackupRetention({dataDirectory,objectStore:store,
+      secondaryStore:secondary,policy:readBackupPolicy(dataDirectory,env),env});
+     recordBackupEvent(dataDirectory,{type:"retention",target:"railway",
+      code:plan.mode==="enforced"?"DELETED_"+plan.deleted:"DRY_RUN_"+plan.eligible.length});
+    }catch(error){
+     recordBackupEvent(dataDirectory,{type:"failure",target:"retention",
+      code:"RETENTION_AUDIT_FAILED",reason:error?.message});
+     await dispatchBackupFailureAlert({directory:dataDirectory,
+      reason:"Retention audit failed",env});
+     console.error("Backup retention inventory unavailable.");
+    }
+   }
+  }catch(e){
+   recordBackupEvent(dataDirectory,{type:"failure",target:"backup",
+    code:"BACKUP_VERIFY_FAILED",reason:e instanceof Error?e.message:"Unknown failure"});
+   const alert=await dispatchBackupFailureAlert({directory:dataDirectory,
+    reason:"Encrypted snapshot verification failed",env});
+   console.error("Offsite backup failure:",e instanceof Error?e.message:"Unknown error",
+    "alert:",alert.delivery);
+  }finally{busy=false;}
  };
  const handle=setInterval(()=>void check(),60*60*1000);
  handle.unref();

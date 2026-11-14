@@ -21,6 +21,7 @@ import { createInventory } from "./inventory.mjs";
 import { installLockerFiles, renderLockerSizeChoices, renderInternalLockerPackage, validLockerCodename } from "./locker-files.mjs";
 import { renderCollectionConcepts } from "./catalog-collections.mjs";
 import { createAssortmentEditor } from "./assortment-editor.mjs";
+import {backupOperationsSnapshot,renderBackupOperationsPage,saveBackupPolicy} from "./backup-operations.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const MS8H = 8 * 60 * 60 * 1000;
@@ -35,7 +36,7 @@ const validEmail = value => typeof value === "string" && value.length <= 254 && 
 const safeCompare = (a, b) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 const csrfField = value => '<input type="hidden" name="csrf" value="' + esc(value) + '">';
 const link = (href, title) => '<a href="' + href + '">' + esc(title) + '</a>';
-const header = (title, user, csrf) => '<header class="private-header"><a class="private-logo" href="' + (user ? "/member" : "/login") + '"><img src="/logo" alt="" width="52" height="52"><span>THE GREEN <b>LOCKER</b></span></a><nav aria-label="Private navigation">' + (user ? link("/member", "My vault") + link("/", "Brand home") + link("/catalog", "Concept catalog") + link("/shop", "Shop preview") + (user.role === "admin" ? link("/admin", "Dashboard") : "") + '<form action="/logout" method="post">' + csrfField(csrf) + '<button type="submit">Log out</button></form>' : link("/login", "Log in") + link("/register", "Register")) + '</nav></header><div class="private-notice">PRIVATE DEVELOPMENT PREVIEW · NO SALES OR ORDERING</div>';
+const header = (title, user, csrf) => '<header class="private-header"><a class="private-logo" href="' + (user ? "/member" : "/login") + '"><img src="/logo" alt="" width="52" height="52"><span>THE GREEN <b>LOCKER</b></span></a><nav aria-label="Private navigation">' + (user ? link("/member", "My vault") + link("/", "Brand home") + link("/catalog", "Concept catalog") + link("/shop", "Shop preview") + (user.role === "admin" ? link("/admin", "Dashboard") + link("/admin/backups", "Backups") : "") + '<form action="/logout" method="post">' + csrfField(csrf) + '<button type="submit">Log out</button></form>' : link("/login", "Log in") + link("/register", "Register")) + '</nav></header><div class="private-notice">PRIVATE DEVELOPMENT PREVIEW · NO SALES OR ORDERING</div>';
 const layout = (title, contents, user = null, csrf = "") => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#06170d"><meta name="robots" content="noindex,nofollow"><title>' + esc(title) + ' | The Green Locker</title><link rel="icon" type="image/png" href="/favicon.ico"><link rel="stylesheet" href="/private.css"></head><body>' + header(title,user,csrf) + '<main class="private-main">' + contents + '</main><footer class="private-footer">The Green Locker · Internal pre-launch software · No purchases, shipping, or fulfillment</footer></body></html>';
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
 const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
@@ -321,6 +322,31 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    }
    if (pathname.startsWith("/admin")) {
      if (user.role !== "admin") return respond(res,403,layout("Access denied",'<h1>Administrator access required</h1>',user,user.csrf));
+     if (method === "GET" && pathname === "/admin/backups") {
+       const snapshot=backupOperationsSnapshot(path.dirname(dbPath));
+       return respond(res,200,renderBackupOperationsPage(snapshot,{
+        layout,user,csrf:user.csrf,notice:url.searchParams.get("notice")||""
+       }));
+     }
+     if (method === "POST" && pathname === "/admin/backups/policy") {
+       const data=await formBody(req);
+       if(!safeCompare(bodyValue(data,"csrf"),user.csrf))
+        return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+       try{
+        const snapshot=backupOperationsSnapshot(path.dirname(dbPath));
+        saveBackupPolicy(path.dirname(dbPath),{
+         retentionDays:data.get("retention_days"),mode:data.get("mode"),
+         confirmation:bodyValue(data,"confirmation"),
+         secondaryVerified:snapshot.secondaryVerified
+        });
+        return redirect(res,"/admin/backups?notice=Retention%20policy%20saved");
+       }catch(error){
+        return respond(res,400,renderBackupOperationsPage(
+         backupOperationsSnapshot(path.dirname(dbPath)),{
+          layout,user,csrf:user.csrf,notice:error.message
+         }));
+       }
+     }
      if (method === "GET" && pathname === "/admin/wallet") {
        return respond(res,200,renderWalletOperationsPage(
          walletOperationsSnapshot(db),{layout,user,csrf:user.csrf}

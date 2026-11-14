@@ -1,0 +1,14 @@
+FROM node:24-alpine
+ENV NODE_ENV=development \
+    TGL_ENV=preview \
+    WORKSHOP_PREVIEW_BIND=0.0.0.0 \
+    WORKSHOP_ALLOW_CLOUD_PREVIEW=1 \
+    TGL_DR_RECOVERY_MODE=1 \
+    TGL_DR_DATA_ROOT=/data \
+    PORT=4174
+WORKDIR /app
+RUN apk add --no-cache su-exec openssl tar
+COPY --chown=node:node . /app
+RUN mkdir -p /data && chown node:node /data
+EXPOSE 4174
+CMD ["sh", "-c", "chown node:node /data && exec su-exec node node scripts/dr-recovery-preview.mjs"]

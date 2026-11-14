@@ -1534,3 +1534,17 @@ body{
   font-size:12px;line-height:1.7;min-height:0
  }
 }
+
+/* Private backup-operations center. Accessible narrow-screen cards, no secrets. */
+.backup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));gap:12px;margin:20px 0}
+.backup-item{min-width:0;padding:15px 17px;border:1px solid #c9a05a44;background:linear-gradient(145deg,#112d20,#0a1d13)}
+.backup-item span{display:block;color:#b5c2b7;font-size:12px;line-height:1.5}
+.backup-item strong{display:block;margin-top:8px;color:#f2d699;font-size:18px;overflow-wrap:anywhere;word-break:break-word}
+.backup-status{display:inline-flex;vertical-align:middle;border:1px solid #c9a05a77;border-radius:2px;padding:5px 10px;margin-left:8px;color:#f8d99e;font:700 11px/1.4 Arial,sans-serif}
+.backup-status.healthy{border-color:#70b08d;color:#c9f3d9}
+.backup-status.stale,.backup-status.missing,.backup-status.degraded{border-color:#efaa82;color:#f9c9ab}
+.backup-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:end;margin-top:16px}
+.backup-form label{font-size:12px;color:#f5dca5}
+.backup-form input,.backup-form select{width:100%;min-width:0;font-size:16px}
+.backup-form button{min-height:44px}
+@media(max-width:440px){.backup-grid{grid-template-columns:minmax(0,1fr)}.backup-status{margin:8px 0 0}.backup-form{grid-template-columns:minmax(0,1fr)}}
