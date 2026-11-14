@@ -7,7 +7,7 @@
     "check": "node --check app.js && node scripts/check-static-site.mjs && npm run check:backend",
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
-    "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs tests/locker-files.test.mjs tests/wallet-pass.test.mjs tests/wallet-updates.test.mjs tests/wallet-monitor.test.mjs tests/catalog-collections.test.mjs tests/assortment-editor.test.mjs tests/assortment-media.test.mjs tests/gallery-backup.test.mjs tests/offsite-backup.test.mjs tests/backup-operations.test.mjs",
+    "test:private": "node --test tests/private-server.test.mjs tests/security-inventory.test.mjs tests/locker-files.test.mjs tests/wallet-pass.test.mjs tests/wallet-updates.test.mjs tests/wallet-monitor.test.mjs tests/catalog-collections.test.mjs tests/assortment-editor.test.mjs tests/assortment-media.test.mjs tests/gallery-backup.test.mjs tests/offsite-backup.test.mjs tests/backup-operations.test.mjs tests/dr-restore-contract.test.mjs",
     "test:browser": "playwright test",
     "test:private:browser": "playwright test --config=playwright.private.config.mjs",
     "staging:preflight": "node scripts/staging-preflight.mjs",
