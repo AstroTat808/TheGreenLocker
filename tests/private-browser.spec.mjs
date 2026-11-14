@@ -440,6 +440,49 @@ test("administrator can manage draft products and stock without sales actions",a
      });
    }
  }
+ // Verify true multi-file selection and sequential revision updates on another slot.
+ const treatSlot=mobileProject?"treat-02":"treat-01";
+ const treatRoot="#edit-"+treatSlot;
+ const sampleImage=Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64");
+ await page.locator(treatRoot+" summary").click();
+ const batchForm=page.locator('[data-concept-upload][data-slot="'+treatSlot+'"]');
+ await expect(batchForm.locator('input[type=file]')).toHaveAttribute("multiple","");
+ await batchForm.locator("input[type=file]").setInputFiles([
+  {name:"batch-a.png",mimeType:"image/png",buffer:sampleImage},
+  {name:"batch-b.png",mimeType:"image/png",buffer:sampleImage}
+ ]);
+ await batchForm.getByRole("button",{name:/Optimize & upload images/}).click();
+ await expect(page.locator(treatRoot+" [data-photo-id]")).toHaveCount(2,{timeout:20000});
+ await page.locator(treatRoot+" summary").click();
+ const targetGallery=page.locator(treatRoot+" [data-gallery]");
+ await targetGallery.getByRole("button",{name:"Reuse existing library photo"}).click();
+ const library=page.locator("#assortment-library-dialog");
+ await expect(library).toBeVisible();
+ await library.locator('input[type="search"]').fill(conceptTitle);
+ const choice=library.locator(".assortment-library-choice:visible").first();
+ await expect(choice).toContainText(conceptTitle);
+ await choice.click();
+ await expect(page.locator(treatRoot+" [data-photo-id]")).toHaveCount(3,{timeout:12000});
+ await page.locator(treatRoot+" summary").click();
+ const reused=page.locator(treatRoot+" [data-photo-id]").last();
+ const reusedImage=await reused.locator("img").getAttribute("src");
+ expect(reusedImage).toMatch(/\/concept-media\/[a-f0-9]{32}\.webp/);
+ page.once("dialog",dialog=>dialog.accept());
+ await reused.getByRole("button",{name:/Remove image/}).click();
+ await expect(page.locator(treatRoot+" [data-photo-id]")).toHaveCount(2,{timeout:12000});
+ await page.locator(treatRoot+" summary").click();
+ await expect(page.locator(slotRoot+" [data-photo-id]")).toHaveCount(2);
+ if(mobileProject){
+  const dir=path.join("test-results","green-locker-mobile-visual-qa");
+  for(const width of [320,375,430]){
+   await page.setViewportSize({width,height:760});
+   await assertNoOverflow(page);
+   await page.locator(treatRoot).screenshot({
+    path:path.join(dir,width+"-bulk-media-library.png"),animations:"disabled"
+   });
+  }
+ }
  await page.goto("/shop");
  await expect(page.getByText(conceptTitle,{exact:true})).toBeVisible();
  await expect(page.getByText("Night Vault Editions",{exact:true})).toBeVisible();

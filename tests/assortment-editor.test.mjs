@@ -159,3 +159,74 @@ test("artwork upload verifies user CSRF, WebP magic, dimensions, metadata and op
  assert.equal(editor.read().entries.treats[1].image_key,null);
  assert.ok(!fs.existsSync(path.join(dir,"concept-art",mediaKey)));
 });
+
+
+test("reusing private gallery artwork preserves original while supporting independent deletion and CSRF",async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"tgl-reusable-media-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const dbPath=path.join(dir,"gallery.sqlite"),db=openDb(dbPath);
+ t.after(()=>db.close());
+ const admin=user(db),editor=harness(db,dbPath);
+ const imageUrl=new URL("http://local/admin/assortment/image?slot_id=botanical-01&version=1");
+ const imageRes={};
+ await editor.adminRoute({
+  req:{headers:{"x-csrf-token":admin.csrf,"content-type":"image/webp"},
+   async *[Symbol.asyncIterator](){yield webp;}},
+  res:imageRes,user:admin,pathname:"/admin/assortment/image",
+  method:"POST",url:imageUrl
+ });
+ assert.equal(imageRes.status,201);
+ const source=editor.read().entries.botanicals[0].images[0];
+ assert.ok(source.id>0);
+ const request=(csrf,sourceId,version=1)=>({
+  headers:{"x-csrf-token":csrf,"content-type":"application/json"},
+  async *[Symbol.asyncIterator](){
+   yield Buffer.from(JSON.stringify({slot_id:"treat-01",version,source_id:sourceId}));
+  }
+ });
+ const route="/admin/assortment/gallery/reuse";
+ const url=new URL("http://local"+route);
+ let res={};
+ await editor.adminRoute({req:request("wrong",source.id),res,user:admin,
+   pathname:route,method:"POST",url});
+ assert.equal(res.status,403);
+ res={};
+ await editor.adminRoute({req:request(admin.csrf,9999),res,user:admin,
+   pathname:route,method:"POST",url});
+ assert.equal(res.status,400);
+ res={};
+ await editor.adminRoute({req:request(admin.csrf,source.id),res,
+  user:{...admin,role:"member"},pathname:route,method:"POST",url});
+ assert.equal(res.status,403);
+ res={};
+ await editor.adminRoute({req:request(admin.csrf,source.id),res,user:admin,
+  pathname:route,method:"POST",url});
+ assert.equal(res.status,200);
+ assert.equal(JSON.parse(res.body).version,2);
+ const reused=editor.read().entries.treats[0].images[0];
+ assert.ok(reused.id!==source.id);
+ assert.notEqual(reused.file_key,source.file_key);
+ assert.deepEqual(fs.readFileSync(path.join(dir,"concept-art",reused.file_key)),webp);
+ assert.deepEqual(fs.readFileSync(path.join(dir,"concept-art",source.file_key)),webp);
+ assert.match(editor.renderEditor({user:admin}),/assortment-library-dialog/);
+ assert.match(editor.renderEditor({user:admin}),/Reuse existing library photo/);
+ res={};
+ await editor.adminRoute({req:request(admin.csrf,source.id),res,user:admin,
+  pathname:route,method:"POST",url});
+ assert.equal(res.status,409,"Stale edit cannot cause a second photo placement.");
+ const remove="/admin/assortment/gallery/delete",removed={};
+ await editor.adminRoute({
+  req:{headers:{"x-csrf-token":admin.csrf,"content-type":"application/json"},
+   async *[Symbol.asyncIterator](){
+    yield Buffer.from(JSON.stringify({
+     slot_id:"treat-01",version:2,image_id:reused.id
+    }));
+   }},
+  res:removed,user:admin,pathname:remove,method:"POST",url:new URL("http://local"+remove)
+ });
+ assert.equal(removed.status,200);
+ assert.equal(editor.read().entries.treats[0].images.length,0);
+ assert.ok(!fs.existsSync(path.join(dir,"concept-art",reused.file_key)));
+ assert.ok(fs.existsSync(path.join(dir,"concept-art",source.file_key)),
+  "Removing one reuse never deletes the original.");
+});

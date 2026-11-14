@@ -107,23 +107,39 @@
    const input=form.querySelector('input[type="file"]');
    const csrf=form.querySelector('input[name="csrf"]')?.value||"";
    const slot=form.dataset.slot;
-   const version=form.dataset.version;
-   if(!input?.files?.length)return;
-   button.disabled=true;button.textContent="Optimizing artwork…";
-   if(label)label.textContent="Processing artwork securely on this device…";
+   const files=Array.from(input?.files||[]);
+   const remaining=Number(form.dataset.remaining);
+   if(!files.length)return;
+   if(!Number.isInteger(remaining)||remaining<0||files.length>remaining){
+    if(label)label.textContent="Select at most "+remaining+" photos (the eight-image limit includes existing artwork).";
+    return;
+   }
+   button.disabled=true;
+   button.textContent="Optimizing & uploading…";
+   let saved=0,version=Number(form.dataset.version);
    try{
-    const blob=await fileToWebp(input.files[0]);
-    const response=await fetch(
-     "/admin/assortment/image?slot_id="+encodeURIComponent(slot)+"&version="+encodeURIComponent(version),
-     {method:"POST",credentials:"same-origin",
-      headers:{"Content-Type":"image/webp","X-CSRF-Token":csrf},body:blob,redirect:"manual"});
-    if(response.status===409)throw Error("Another edit changed this slot. Refresh and try again.");
-    if(!response.ok)throw Error((await response.text()).slice(0,170)||"Image upload was rejected.");
-    if(label)label.textContent="Artwork uploaded. Reloading the latest concept…";
+    for(const [index,file] of files.entries()){
+     if(label)label.textContent="Processing image "+(index+1)+" of "+files.length+"…";
+     const blob=await fileToWebp(file);
+     const response=await fetch(
+      "/admin/assortment/image?slot_id="+encodeURIComponent(slot)+"&version="+encodeURIComponent(version),
+      {method:"POST",credentials:"same-origin",
+       headers:{"Content-Type":"image/webp","X-CSRF-Token":csrf},body:blob,redirect:"manual"});
+     if(response.status===409)throw Error("Another edit changed this slot. Refresh before attempting more uploads.");
+     if(!response.ok)throw Error((await response.text()).slice(0,170)||"Image upload was rejected.");
+     const result=await response.json();
+     if(!Number.isSafeInteger(result.version))throw Error("Upload response was incomplete.");
+     version=result.version;
+     saved++;
+    }
+    if(label)label.textContent=saved+" images uploaded. Refreshing gallery…";
     refreshEditor("Artwork uploaded",slot);
    }catch(error){
-    if(label)label.textContent=error?.message||"Unable to upload image.";
-    button.disabled=false;button.textContent="Optimize & upload image";
+    if(label)label.textContent=(saved? saved+" photos saved. ":"")+
+      (error?.message||"Unable to upload images.")+
+      (saved?" Refresh to see saved images.":"");
+    button.disabled=false;
+    button.textContent="Optimize & upload images";
    }
   });
  }
@@ -225,6 +241,43 @@
   });
   gallery.querySelector(".assortment-gallery-save")?.addEventListener("click",()=>{
    perform("order",{ids:entries().map(item=>Number(item.dataset.photoId))},"Image order saved.");
+  });
+ }
+
+ // Accessible library picker: reuse an existing private photo in another slot.
+ const dialog=document.querySelector("#assortment-library-dialog");
+ if(dialog){
+  const search=dialog.querySelector('input[type="search"]');
+  const feedback=dialog.querySelector(".assortment-library-feedback");
+  const choices=Array.from(dialog.querySelectorAll("[data-reuse-id]"));
+  let targetGallery=null,busy=false;
+  dialog.querySelector(".assortment-library-close")?.addEventListener("click",()=>dialog.close());
+  document.querySelectorAll("[data-reuse-open]").forEach(button=>button.addEventListener("click",()=>{
+   targetGallery=document.querySelector('[data-gallery][data-slot="'+button.dataset.reuseOpen+'"]');
+   if(!targetGallery)return;
+   if(search)search.value="";
+   choices.forEach(choice=>choice.hidden=false);
+   if(feedback)feedback.textContent="";
+   dialog.showModal();
+   search?.focus();
+  }));
+  search?.addEventListener("input",()=>{
+   const q=search.value.trim().toLowerCase();
+   choices.forEach(choice=>{choice.hidden=!choice.dataset.search.includes(q);});
+  });
+  dialog.querySelector(".assortment-library-choices")?.addEventListener("click",async event=>{
+   const choice=event.target.closest("[data-reuse-id]");
+   if(!choice||busy||!targetGallery)return;
+   busy=true;
+   if(feedback)feedback.textContent="Adding image to this concept…";
+   try{
+    const result=await saveRequest(targetGallery,"reuse",{source_id:Number(choice.dataset.reuseId)});
+    if(!result.ok)throw Error("Unable to reuse photo.");
+    if(feedback)feedback.textContent="Image added. Refreshing the media library…";
+    refreshEditor("Gallery updated",targetGallery.dataset.slot);
+   }catch(error){
+    if(feedback)feedback.textContent=error?.message||"Unable to reuse image.";
+   }finally{busy=false;}
   });
  }
 

@@ -1468,3 +1468,69 @@ body{
  .assortment-gallery-actions button{min-height:44px}
 }
 @media(prefers-reduced-motion:reduce){.assortment-gallery-item,.concept-gallery-tools{transition:none!important}}
+
+
+/* Private, searchable media-library picker and multi-file upload polish. */
+.assortment-library-open{display:block;margin:12px 0 3px;width:100%;min-height:47px;
+ border:1px solid #e7c487;border-radius:9px;background:#183b29;color:#ffebbc;
+ font:700 12px/1.4 Arial,sans-serif;cursor:pointer;padding:12px}
+.assortment-library-open:focus-visible{outline:3px solid #f8d99a;outline-offset:3px}
+.assortment-library-dialog{box-sizing:border-box;position:fixed;inset:0;margin:auto;
+ width:min(760px,calc(100vw - 24px));max-width:760px;max-height:min(86dvh,850px);
+ padding:clamp(16px,3.2vw,29px);overflow:auto;color:#f9eacb;background:#081a12;
+ border:1px solid #e1bf77;border-radius:19px;box-shadow:0 35px 120px #000c}
+.assortment-library-dialog::backdrop{background:#000b;backdrop-filter:blur(7px)}
+.assortment-library-header{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.assortment-library-header h2{margin:0;font:normal clamp(27px,4vw,42px)/1.15 Georgia,serif;
+ color:#e7c987}
+.assortment-library-header em{color:#d6e9cd}
+.assortment-library-close{flex:none;width:46px;height:46px;border:1px solid #d5b87d;
+ border-radius:50%;background:#1b3928;color:#ffebca;font-size:30px;cursor:pointer}
+.assortment-library-dialog p{color:#b8cbbd;font:13px/1.65 Arial,sans-serif}
+.assortment-library-filter{display:grid;gap:8px;margin:15px 0;color:#e8d7b8;
+ font:700 12px/1.5 Arial,sans-serif}
+.assortment-library-filter input{box-sizing:border-box;min-height:46px;width:100%;min-width:0;
+ background:#092419;color:#fff;border:1px solid #cdab77;border-radius:8px;padding:12px;
+ font:14px Arial,sans-serif}
+.assortment-library-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px;margin:12px 0;max-height:min(48dvh,410px);overflow:auto}
+.assortment-library-choice{box-sizing:border-box;display:grid;grid-template-columns:80px minmax(0,1fr);
+ gap:12px;align-items:center;min-width:0;text-align:left;padding:9px;background:#112a1c;
+ border:1px solid #cfb0737d;border-radius:11px;color:#f7e2b7;cursor:pointer}
+.assortment-library-choice:hover{background:#1b4029;border-color:#e6cd9a}
+.assortment-library-choice:focus-visible{outline:3px solid #ffe2a3;outline-offset:2px}
+.assortment-library-choice img{width:80px;height:68px;border-radius:7px;object-fit:cover}
+.assortment-library-choice strong{display:block;overflow-wrap:anywhere;font:700 13px/1.4 Arial,sans-serif}
+.assortment-library-choice small{display:block;color:#bbceb9;overflow-wrap:anywhere;
+ font:11px/1.5 Arial,sans-serif}
+.assortment-library-choice[hidden]{display:none!important}
+.assortment-library-feedback{min-height:22px;color:#e7d5af}
+.assortment-upload-form input[type=file]{min-height:50px;max-width:100%}
+.assortment-upload-form input[type=file]::file-selector-button{background:#214d33;border:1px solid #d2b579;
+ color:#f9e7c4;padding:10px;border-radius:8px;margin-right:10px}
+@media(max-width:560px){
+ .assortment-library-choices{grid-template-columns:minmax(0,1fr)}
+ .assortment-library-choice{grid-template-columns:65px minmax(0,1fr)}
+ .assortment-library-choice img{width:65px;height:65px}
+}
+@media(prefers-reduced-motion:reduce){
+ .assortment-library-dialog::backdrop{backdrop-filter:none}
+}
+
+
+/* PR #16 mobile visual QA: full-width editorial cards on narrow phones,
+   with 44px image gallery navigation controls for touch accessibility. */
+@media(max-width:480px){
+ .collection-image-gallery>.concept-gallery-tools button{
+  width:44px;height:44px;min-width:44px;min-height:44px
+ }
+}
+@media(max-width:380px){
+ .collection-botanical-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ .collection-concept-botanical .collection-concept-art{aspect-ratio:1.38}
+ .collection-concept-botanical .collection-concept-details{padding:17px;gap:10px}
+ .collection-concept-botanical .collection-concept-details h3{font-size:24px;line-height:1.22}
+ .collection-concept-botanical .collection-concept-details p{
+  font-size:12px;line-height:1.7;min-height:0
+ }
+}
