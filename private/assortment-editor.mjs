@@ -163,6 +163,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
  function renderEditor({user,notice=""}){
   const state=readAssortment(db);
   const csrf=escapeHtml(user.csrf);
+  const library=db.prepare("SELECT m.id,m.file_key,m.alt_text,m.slot_id,c.title FROM collection_media m JOIN collection_concepts c ON c.id=m.slot_id ORDER BY m.id DESC LIMIT 180").all();
   const nav='<nav class="assortment-editor-nav" aria-label="Assortment editor collections">'+
    '<a href="#edit-botanicals">Botanical varieties <b>4 slots</b></a>'+
    '<a href="#edit-vapes">Vape flavors <b>12 slots</b></a>'+
@@ -177,6 +178,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
       ?'<img src="/concept-media/'+row.image_key+'" alt="Uploaded concept artwork for '+escapeHtml(row.title)+'" loading="lazy">'
       :'<img src="/assets/collection-'+(family==="botanicals"?"botanical":family==="vapes"?"vape":"treat")+'.svg" alt="Original gold and emerald packaging concept" loading="lazy">';
     const images=row.images||[];
+    const remaining=MAX_GALLERY_IMAGES-images.length;
     const galleryMarkup=images.map((item,i)=>'<li draggable="true" class="assortment-gallery-item" data-photo-id="'+item.id+'">'+
       '<span class="assortment-gallery-handle" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'+
       '<img loading="lazy" src="/concept-media/'+item.file_key+'" alt="'+escapeHtml(item.alt_text||("Concept image "+(i+1)))+'">'+
@@ -194,6 +196,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
       '<p>Drag to change image order, or use arrows on mobile. The first image is the shop cover.</p>'+
       '<ol class="assortment-gallery-list">'+(galleryMarkup||'<li class="assortment-gallery-empty">No uploaded images yet. Original art will show until you add a photo.</li>')+'</ol>'+
       (images.length>1?'<button class="private-button assortment-gallery-save" type="button">Save image order</button>':'')+
+      (library.length&&remaining?'<button type="button" class="assortment-library-open" data-reuse-open="'+row.id+'">Reuse existing library photo</button>':'')+
       '<p class="assortment-gallery-status" role="status" aria-live="polite"></p></section>';
     return '<article class="assortment-editor-card" id="edit-'+row.id+'">'+
       '<div class="assortment-editor-thumb">'+image+
@@ -211,10 +214,10 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
        '<label class="assortment-editor-check"><input type="checkbox" name="preview_visible" value="1"'+(row.preview_visible?" checked":"")+'><span>Show this draft slot in the private preview</span></label>'+
        '<button type="submit" class="private-button">Save concept</button>'+
       '</form>'+
-      '<form data-concept-upload data-slot="'+row.id+'" data-version="'+row.version+'" class="assortment-upload-form">'+
+      '<form data-concept-upload data-slot="'+row.id+'" data-version="'+row.version+'" data-remaining="'+remaining+'" class="assortment-upload-form">'+
        '<input type="hidden" name="csrf" value="'+csrf+'">'+
-       '<label>Add photo (PNG/JPEG/WebP, up to 12MB before optimization)<input type="file" accept="image/png,image/jpeg,image/webp" required></label>'+
-       '<button type="submit" class="private-button">Optimize &amp; upload image</button>'+
+       '<label>Add photos (PNG/JPEG/WebP, max 12MB each)<input type="file" accept="image/png,image/jpeg,image/webp" multiple required'+(remaining?'':' disabled')+'></label>'+
+       '<button type="submit" class="private-button"'+(remaining?'':' disabled')+'>Optimize &amp; upload images</button>'+
        '<p class="upload-result" role="status" aria-live="polite"></p>'+
       '</form>'+
       galleryPanel+
@@ -225,6 +228,18 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
      '<h2>'+title+'</h2><p>'+subtitle+'</p>'+
      '<div class="assortment-editor-grid">'+items+'</div></section>';
   }).join("");
+  const libraryCards=library.map(image=>
+    '<button type="button" class="assortment-library-choice" data-reuse-id="'+image.id+
+    '" data-search="'+escapeHtml((image.title+" "+image.alt_text+" "+image.slot_id).toLowerCase())+'">'+
+    '<img src="/concept-media/'+image.file_key+'" loading="lazy" alt="">'+
+    '<span><strong>'+escapeHtml(image.title)+'</strong><small>'+escapeHtml(image.alt_text||"Unlabeled artwork")+'</small></span></button>').join("");
+  const libraryDialog='<dialog class="assortment-library-dialog" id="assortment-library-dialog" aria-labelledby="assortment-library-title">'+
+    '<div class="assortment-library-header"><h2 id="assortment-library-title">Media <em>Library</em></h2>'+
+    '<button type="button" class="assortment-library-close" aria-label="Close library">×</button></div>'+
+    '<p>Choose an image to reuse in another concept; removing one use does not delete another.</p>'+
+    '<label class="assortment-library-filter">Search images<input type="search" maxlength="100" placeholder="Filter by product or description"></label>'+
+    '<div class="assortment-library-choices">'+(libraryCards||'<p>Upload artwork to see it here.</p>')+'</div>'+
+    '<p class="assortment-library-feedback" role="status" aria-live="polite"></p></dialog>';
   const brand='<section class="assortment-brand-panel"><h2>Vape brand identity</h2>'+
     '<p>Edit the one brand name used above all twelve vape flavor concepts.</p>'+
     '<form action="/admin/assortment/brand" method="post">'+
@@ -246,7 +261,7 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
    '<p class="assortment-editor-limits">Private design environment only. No pricing, ordering, shipping or sale availability is managed here.</p>'+
    '<a class="wallet-monitor-return" href="/admin">← Back to operations</a>'+
    (notice?'<p class="form-ok" role="status">'+escapeHtml(notice)+'</p>':'')+
-   '</section>'+nav+groups+brand+
+   '</section>'+nav+groups+libraryDialog+brand+
    '<section class="assortment-editor-section"><h2>Recent edit activity</h2>'+
    '<div class="scroll-table"><table><thead><tr><th>Slot</th><th>Change</th><th>Version</th><th>UTC</th></tr></thead>'+
    '<tbody>'+(audit||'<tr><td colspan="4">No edits yet</td></tr>')+'</tbody></table></div></section>'+
