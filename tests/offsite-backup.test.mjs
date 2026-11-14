@@ -65,7 +65,7 @@ test("encrypted offsite upload/readback restores SQLite, gallery and MFA credent
   encrypted:tampered,masterHex:key,targetDirectory:path.join(root,"tampered-output")
  }),/authentication|decryption/i);
  assert.equal(fs.existsSync(path.join(root,"tampered-output")),false);
- assert.rejects(()=>restoreEncryptedBackup({
+ await assert.rejects(()=>restoreEncryptedBackup({
   encrypted,masterHex:key,targetDirectory:restored
  }),/destination exists/);
  db.close();
