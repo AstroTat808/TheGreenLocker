@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {randomBytes} from "node:crypto";
 import {openDb,createApp} from "../private/server.mjs";
+import {installSecurity} from "../private/security.mjs";
 import {createAssortmentEditor} from "../private/assortment-editor.mjs";
 import {enforcePreviewGate} from "../scripts/preview-gate.mjs";
 import {runAndVerifyOffsiteBackup,restoreEncryptedBackup} from "../scripts/offsite-backup.mjs";
@@ -15,6 +16,7 @@ test("isolated, recovered database boots a separate protected member application
  const data=path.join(root,"original-volume");
  fs.mkdirSync(data);
  const dbPath=path.join(data,"preview.sqlite"),db=openDb(dbPath);
+ installSecurity(db);
  const fixture={
   inviteCode:randomBytes(30).toString("hex"),mfaKey:randomBytes(32).toString("base64"),
   memberEmail:"dr-member@example.test",memberPassword:"dr-pass-should-not-be-logged",
