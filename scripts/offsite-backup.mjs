@@ -250,33 +250,99 @@ function backupStatus(dataDirectory){
  try{return safeJson(path.join(dataDirectory,"backup-status.json"));}
  catch{return null;}
 }
+const catalogFile=dir=>path.join(dir,"backup-catalog.json");
+function recentCatalog(dir){
+ try{
+  const data=JSON.parse(fs.readFileSync(catalogFile(dir),"utf8"));
+  return Array.isArray(data)?data.filter(x=>x&&backupName.test(x.objectKey||"")):[];
+ }catch{return [];}
+}
+function saveCatalog(dir,rows){
+ const target=catalogFile(dir),tmp=target+"."+randomBytes(6).toString("hex")+".tmp";
+ fs.writeFileSync(tmp,JSON.stringify(rows.slice(-1000),null,2)+"\n",{mode:0o600,flag:"wx"});
+ fs.renameSync(tmp,target);
+}
+export async function previewBackupRetention({dataDirectory,objectStore,secondaryStore=null,
+ retentionDays=90,minimumCopies=14}){
+ if(!Number.isInteger(retentionDays)||retentionDays<30||retentionDays>365)
+  throw Error("Invalid retention policy.");
+ const [primary,mirrored]=await Promise.all([
+  objectStore.listFiles(),secondaryStore?secondaryStore.listFiles():Promise.resolve([])
+ ]);
+ const mirrors=new Set(mirrored.map(x=>x.key));
+ const catalog=recentCatalog(dataDirectory);
+ const verified=new Set(catalog.filter(x=>x.secondaryVerified===true)
+   .map(x=>x.objectKey));
+ const protectedKeys=new Set(primary.slice().sort((a,b)=>
+   Date.parse(b.lastModified)-Date.parse(a.lastModified)).slice(0,minimumCopies).map(x=>x.key));
+ const latest=backupStatus(dataDirectory)?.objectKey;
+ if(latest)protectedKeys.add(latest);
+ const expiry=Date.now()-retentionDays*24*60*60*1000;
+ const eligible=primary.filter(x=>backupName.test(x.key)&&
+   Date.parse(x.lastModified)<expiry&&
+   Number.isFinite(Date.parse(x.lastModified))&&
+   verified.has(x.key)&&mirrors.has(x.key)&&!protectedKeys.has(x.key));
+ return {total:primary.length,mirrored:mirrored.length,eligible,
+  oldest:primary.map(x=>x.lastModified).sort()[0]||null,
+  retentionDays,minimumCopies,canDelete:!!secondaryStore};
+}
+export async function enforceBackupRetention({dataDirectory,objectStore,
+ secondaryStore=null,policy,env=process.env}){
+ const plan=await previewBackupRetention({dataDirectory,objectStore,secondaryStore,
+  retentionDays:policy.retentionDays,minimumCopies:policy.minimumCopies||14});
+ const authorized=policy.mode==="enforce"&&env.TGL_BACKUP_RETENTION_ALLOW_DELETE==="1"&&
+  env.TGL_BACKUP_ESCROW_CONFIRMED==="1"&&!!secondaryStore;
+ if(!authorized)return {...plan,deleted:0,mode:"dry-run"};
+ let count=0;
+ // Only delete the Railway primary copy when a verified matching archive remains
+ // in the separately administered secondary provider.
+ for(const item of plan.eligible.slice(0,30)){
+  await objectStore.deleteFile(item.key);
+  count++;
+ }
+ return {...plan,deleted:count,mode:"enforced"};
+}
 export async function runAndVerifyOffsiteBackup({
- dataDirectory,dbPath,masterHex,objectStore=createS3Store(),force=false
+ dataDirectory,dbPath,masterHex,objectStore=createS3Store(),
+ secondaryStore=null,requireSecondary=false,force=false
 }){
  if(!masterHex)throw Error("Backup encryption key is missing.");
  hexKey(masterHex);
+ if(requireSecondary&&!secondaryStore)throw Error("Independent backup destination is required but missing.");
  const status=backupStatus(dataDirectory);
- if(!force&&status?.verifiedAt&&Date.now()-Date.parse(status.verifiedAt)<24*60*60*1000)
+ const fresh=status?.verifiedAt&&Date.now()-Date.parse(status.verifiedAt)<24*60*60*1000;
+ if(!force&&fresh&&(!secondaryStore||status?.targets?.secondary?.verifiedAt))
   return {skipped:true,objectKey:status.objectKey};
  const work=temporary();
  try{
   const {sealed,encrypted}=await buildArchive({dbPath,dataDirectory,masterHex,work});
   const now=new Date().toISOString();
   const objectKey="daily/"+now.slice(0,10)+"/"+randomBytes(12).toString("hex")+".tglbk";
-  await objectStore.putFile(objectKey,sealed);
-  const downloaded=path.join(work,"downloaded.tglbk");
-  await objectStore.getFile(objectKey,downloaded);
-  if(shaFile(downloaded)!==encrypted.sha256)
-   throw Error("Remote encrypted object SHA-256 differs from the uploaded snapshot.");
-  const result=await restoreEncryptedBackup({
-   encrypted:downloaded,masterHex,targetDirectory:path.join(work,"isolated-restore")
-  });
+  async function verify(store,target){
+   await store.putFile(objectKey,sealed);
+   const downloaded=path.join(work,target+".tglbk");
+   await store.getFile(objectKey,downloaded);
+   if(shaFile(downloaded)!==encrypted.sha256)
+    throw Error("Remote encrypted object SHA-256 mismatch at "+target+".");
+   const result=await restoreEncryptedBackup({
+    encrypted:downloaded,masterHex,targetDirectory:path.join(work,target+"-restore")
+   });
+   return {verifiedAt:now,images:result.images,users:result.users,
+    encryptedSha256:encrypted.sha256};
+  }
+  const primary=await verify(objectStore,"primary");
+  const secondary=secondaryStore?await verify(secondaryStore,"secondary"):null;
   const payload={verifiedAt:now,objectKey,encryptedSha256:encrypted.sha256,
-    bytes:encrypted.bytes,images:result.images,users:result.users,credentialsIncluded:true};
+    bytes:encrypted.bytes,images:primary.images,users:primary.users,
+    credentialsIncluded:true,targets:{primary,secondary}};
   const marker=path.join(dataDirectory,"backup-status.json");
   const tmp=marker+"."+randomBytes(6).toString("hex")+".tmp";
   fs.writeFileSync(tmp,JSON.stringify(payload)+"\n",{mode:0o600,flag:"wx"});
   fs.renameSync(tmp,marker);
+  const catalog=recentCatalog(dataDirectory);
+  catalog.push({objectKey,verifiedAt:now,sha256:encrypted.sha256,
+   primaryVerified:true,secondaryVerified:!!secondary});
+  saveCatalog(dataDirectory,catalog);
   return payload;
  }finally{cleanUp(work);}
 }
