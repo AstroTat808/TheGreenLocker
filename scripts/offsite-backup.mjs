@@ -402,9 +402,10 @@ export function startScheduledOffsiteBackups({guard,dataDirectory,dbPath,env=pro
   busy=true;
   try{
    if(secondaryConfigurationError)throw secondaryConfigurationError;
+   const bootstrap=!fs.existsSync(path.join(dataDirectory,"backup-operations.json"));
    const result=await guard.exclusive(()=>runAndVerifyOffsiteBackup({
     dataDirectory,dbPath,masterHex,objectStore:store,secondaryStore:secondary,
-    requireSecondary:env.TGL_BACKUP_REQUIRE_SECONDARY==="1"
+    requireSecondary:env.TGL_BACKUP_REQUIRE_SECONDARY==="1",force:bootstrap
    }));
    if(!result.skipped){
     recordBackupEvent(dataDirectory,{type:"verified",target:secondary?"dual":"railway",
