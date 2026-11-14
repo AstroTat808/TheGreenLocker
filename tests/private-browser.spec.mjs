@@ -429,16 +429,16 @@ test("administrator can manage draft products and stock without sales actions",a
  await page.goto("/shop");
  await expect(page.getByText("Coastal Gold Concept",{exact:true})).toBeVisible();
  await expect(page.getByText("Night Vault Editions",{exact:true})).toBeVisible();
- const botanicalCard=page.locator(".collection-concept-botanical").first();
- await expect(botanicalCard.locator("img.collection-art-photo")).toHaveCount(2);
- await expect(botanicalCard.locator("img.collection-art-photo").first()).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
- await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeHidden();
- const firstSource=await botanicalCard.locator("img.collection-art-photo").first().getAttribute("src");
- await botanicalCard.getByRole("button",{name:/Next Coastal Gold Concept image/}).click();
- await expect(botanicalCard.locator("[data-gallery-counter]")).toHaveText("2 / 2");
- await expect(botanicalCard.locator("img.collection-art-photo").first()).toBeHidden();
- await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeVisible();
- expect(await botanicalCard.locator("img.collection-art-photo").nth(1).getAttribute("src")).not.toBe(firstSource);
+ const conceptCard=page.locator(".collection-concept-botanical").first();
+ await expect(conceptCard.locator("img.collection-art-photo")).toHaveCount(2);
+ await expect(conceptCard.locator("img.collection-art-photo").first()).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await expect(conceptCard.locator("img.collection-art-photo").nth(1)).toBeHidden();
+ const firstSource=await conceptCard.locator("img.collection-art-photo").first().getAttribute("src");
+ await conceptCard.getByRole("button",{name:/Next Coastal Gold Concept image/}).click();
+ await expect(conceptCard.locator("[data-gallery-counter]")).toHaveText("2 / 2");
+ await expect(conceptCard.locator("img.collection-art-photo").first()).toBeHidden();
+ await expect(conceptCard.locator("img.collection-art-photo").nth(1)).toBeVisible();
+ expect(await conceptCard.locator("img.collection-art-photo").nth(1).getAttribute("src")).not.toBe(firstSource);
  if(test.info().project.name==="private-mobile-webkit"){
    const dir=path.join("test-results","green-locker-mobile-visual-qa");
    for(const width of [320,375,430]){
