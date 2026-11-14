@@ -434,7 +434,7 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(botanicalCard.locator("img.collection-art-photo").first()).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
  await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeHidden();
  const firstSource=await botanicalCard.locator("img.collection-art-photo").first().getAttribute("src");
- await botanicalCard.getByRole("button",{name:/Next Variety 01 image/}).click();
+ await botanicalCard.getByRole("button",{name:/Next Coastal Gold Concept image/}).click();
  await expect(botanicalCard.locator("[data-gallery-counter]")).toHaveText("2 / 2");
  await expect(botanicalCard.locator("img.collection-art-photo").first()).toBeHidden();
  await expect(botanicalCard.locator("img.collection-art-photo").nth(1)).toBeVisible();
