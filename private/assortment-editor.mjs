@@ -342,7 +342,8 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
   if(method==="POST"&&[
     "/admin/assortment/gallery/order",
     "/admin/assortment/gallery/caption",
-    "/admin/assortment/gallery/delete"
+    "/admin/assortment/gallery/delete",
+    "/admin/assortment/gallery/reuse"
   ].includes(pathname)){
    if(req.headers["x-csrf-token"]!==user.csrf){
     respond(res,403,"Invalid CSRF token","text/plain; charset=utf-8");
@@ -354,7 +355,27 @@ export function createAssortmentEditor({db,dbPath,respond,redirect,formBody,layo
     if(!checkedSlot(slotId))throw new AssortmentInvalid("Unknown gallery slot");
     const common={slotId,expectedVersion:body.version,editorId:user.id};
     let result;
-    if(pathname.endsWith("/order")){
+    if(pathname.endsWith("/reuse")){
+     const sourceId=body.source_id;
+     if(!Number.isSafeInteger(sourceId)||sourceId<1)throw new AssortmentInvalid("Invalid library selection");
+     const source=db.prepare("SELECT file_key,alt_text FROM collection_media WHERE id=?").get(sourceId);
+     if(!source||!keyValid(source.file_key))throw new AssortmentInvalid("Library image unavailable");
+     const newKey=randomBytes(16).toString("hex")+".webp";
+     fs.mkdirSync(fileDirectory,{recursive:true,mode:0o700});
+     const dest=rel(newKey);
+     try{
+      // Independent copy: removing a placement cannot remove other uses.
+      fs.copyFileSync(rel(source.file_key),dest,fs.constants.COPYFILE_EXCL);
+      fs.chmodSync(dest,0o600);
+      result=appendGalleryImage(db,{
+       slotId,expectedVersion:body.version,key:newKey,
+       description:source.alt_text,editorId:user.id
+      });
+     }catch(error){
+      try{fs.unlinkSync(dest);}catch{}
+      throw error;
+     }
+    }else if(pathname.endsWith("/order")){
      result=reorderGallery(db,{...common,ids:body.ids});
     }else if(pathname.endsWith("/caption")){
      result=setGalleryCaption(db,{...common,imageId:body.image_id,description:body.description});
