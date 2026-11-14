@@ -338,6 +338,11 @@ test("invited member can register, log in, and view concept-only catalog",async(
 test("administrator can manage draft products and stock without sales actions",async({page})=>{
  test.slow(); // Authenticated admin Wallet QA includes three responsive captures.
  const email=emailFor();
+ const mobileProject=test.info().project.name==="private-mobile-webkit";
+ const conceptSlot=mobileProject?"botanical-02":"botanical-01";
+ const conceptPosition=mobileProject?1:0;
+ const conceptTitle=mobileProject?"Coastal Gold Mobile Concept":"Coastal Gold Desktop Concept";
+ const slotRoot="#edit-"+conceptSlot;
  await register(page,email);
  await login(page,email);
  execFileSync(process.execPath,["private/admin-cli.mjs",email],{cwd:process.cwd(),env:{...process.env,TGL_DB_PATH:path.join(process.cwd(),"data","browser-ci.sqlite")}});
@@ -371,14 +376,14 @@ test("administrator can manage draft products and stock without sales actions",a
      await page.locator("#edit-botanicals").screenshot({
        path:path.join(dir,width+"-assortment-studio.png"),animations:"disabled"
      });
-     const touch=await page.locator("#edit-botanical-01 summary").evaluate(el=>el.getBoundingClientRect().height);
+     const touch=await page.locator(slotRoot+" summary").evaluate(el=>el.getBoundingClientRect().height);
      expect(touch).toBeGreaterThanOrEqual(44);
    }
  }
- const first=page.locator("#edit-botanical-01");
+ const first=page.locator(slotRoot);
  await first.locator("summary").click();
  const editForm=first.locator('form[action="/admin/assortment/entry"]');
- await editForm.locator('input[name="title"]').fill("Coastal Gold Concept");
+ await editForm.locator('input[name="title"]').fill(conceptTitle);
  await editForm.locator('textarea[name="description"]').fill("A premium emerald pouch concept; artwork and sourcing remain under review.");
  await editForm.getByRole("button",{name:"Save concept"}).click();
  await expect(page).toHaveURL(/\/admin\/assortment\?notice=/);
@@ -387,26 +392,32 @@ test("administrator can manage draft products and stock without sales actions",a
  await brandForm.locator('input[name="brand"]').fill("Night Vault Editions");
  await brandForm.getByRole("button",{name:"Save brand identity"}).click();
  await expect(page.getByText("Brand name saved",{exact:true})).toBeVisible();
- await page.locator("#edit-botanical-01 summary").click(); // Refresh closes details; reopen before clicking upload.
- const imageForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
+ await page.locator(slotRoot+" summary").click(); // Refresh closes details; reopen before clicking upload.
+ const imageForm=page.locator('[data-concept-upload][data-slot="'+conceptSlot+'"]');
  await imageForm.locator('input[type="file"]').setInputFiles({
    name:"preview.png",mimeType:"image/png",
    buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64")
  });
  // Admin artwork is stripped of source metadata and re-encoded as WebP.
- await imageForm.getByRole("button",{name:/Optimize & upload image/}).click();
+ await Promise.all([
+   page.waitForResponse(r=>r.url().includes("/admin/assortment/image?") && r.request().method()==="POST" && r.status()===201),
+   imageForm.getByRole("button",{name:/Optimize & upload image/}).click()
+ ]);
  await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
- await expect(page.locator('#edit-botanical-01 .assortment-editor-thumb img')).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
- await page.locator("#edit-botanical-01 summary").click();
- const secondForm=page.locator('[data-concept-upload][data-slot="botanical-01"]');
+ await expect(page.locator(slotRoot+' .assortment-editor-thumb img')).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
+ await page.locator(slotRoot+" summary").click();
+ const secondForm=page.locator('[data-concept-upload][data-slot="'+conceptSlot+'"]');
  await secondForm.locator('input[type="file"]').setInputFiles({
    name:"alternate.png",mimeType:"image/png",
    buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64")
  });
- await secondForm.getByRole("button",{name:/Optimize & upload image/}).click();
+ await Promise.all([
+   page.waitForResponse(r=>r.url().includes("/admin/assortment/image?") && r.request().method()==="POST" && r.status()===201),
+   secondForm.getByRole("button",{name:/Optimize & upload image/}).click()
+ ]);
  await expect(page.getByText("Artwork uploaded",{exact:true})).toBeVisible({timeout:15000});
- await page.locator("#edit-botanical-01 summary").click();
- const panel=page.locator("#edit-botanical-01 [data-gallery]");
+ await page.locator(slotRoot+" summary").click();
+ const panel=page.locator(slotRoot+" [data-gallery]");
  await expect(panel.locator("[data-photo-id]")).toHaveCount(2);
  await expect(panel.locator(".assortment-gallery-counter")).toContainText("2 / 8");
  // Mobile-accessible cover choice must preserve the new cover in SQLite.
@@ -414,27 +425,27 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(panel.locator("[data-photo-id]").first().locator(".assortment-gallery-position")).toHaveText("Cover image");
  await panel.getByRole("button",{name:"Save image order"}).click();
  await expect(page.getByText("Gallery updated",{exact:true})).toBeVisible({timeout:10000});
- await page.locator("#edit-botanical-01 summary").click();
- await expect(page.locator("#edit-botanical-01 [data-gallery] [data-photo-id]")).toHaveCount(2);
+ await page.locator(slotRoot+" summary").click();
+ await expect(page.locator(slotRoot+" [data-gallery] [data-photo-id]")).toHaveCount(2);
  if(test.info().project.name==="private-mobile-webkit"){
    const dir=path.join("test-results","green-locker-mobile-visual-qa");
    for(const width of [320,375,430]){
      await page.setViewportSize({width,height:760});
      await assertNoOverflow(page);
-     await page.locator("#edit-botanical-01").screenshot({
+     await page.locator(slotRoot).screenshot({
        path:path.join(dir,width+"-media-gallery-admin.png"),animations:"disabled"
      });
    }
  }
  await page.goto("/shop");
- await expect(page.getByText("Coastal Gold Concept",{exact:true})).toBeVisible();
+ await expect(page.getByText(conceptTitle,{exact:true})).toBeVisible();
  await expect(page.getByText("Night Vault Editions",{exact:true})).toBeVisible();
- const conceptCard=page.locator(".collection-concept-botanical").first();
+ const conceptCard=page.locator(".collection-concept-botanical").nth(conceptPosition);
  await expect(conceptCard.locator("img.collection-art-photo")).toHaveCount(2);
  await expect(conceptCard.locator("img.collection-art-photo").first()).toHaveAttribute("src",/\/concept-media\/[a-f0-9]{32}\.webp/);
  await expect(conceptCard.locator("img.collection-art-photo").nth(1)).toBeHidden();
  const firstSource=await conceptCard.locator("img.collection-art-photo").first().getAttribute("src");
- await conceptCard.getByRole("button",{name:/Next Coastal Gold Concept image/}).click();
+ await conceptCard.getByRole("button",{name:new RegExp("Next "+conceptTitle+" image")}).click();
  await expect(conceptCard.locator("[data-gallery-counter]")).toHaveText("2 / 2");
  await expect(conceptCard.locator("img.collection-art-photo").first()).toBeHidden();
  await expect(conceptCard.locator("img.collection-art-photo").nth(1)).toBeVisible();
