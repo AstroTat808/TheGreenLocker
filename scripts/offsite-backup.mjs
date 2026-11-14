@@ -22,7 +22,14 @@ const TAG_BYTES=16;
 const EMPTY_SHA256=createHash("sha256").update("").digest("hex");
 const backupName=/^daily\/\d{4}-\d{2}-\d{2}\/[a-f0-9]{24}\.tglbk$/;
 const imageFile=/^[a-f0-9]{32}\.webp$/;
-const shaFile=p=>createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+const shaFile=p=>{
+ const hash=createHash("sha256"),fd=fs.openSync(p,"r"),chunk=Buffer.allocUnsafe(64*1024);
+ try{
+  let read;
+  while((read=fs.readSync(fd,chunk,0,chunk.length,null))>0)hash.update(chunk.subarray(0,read));
+ }finally{fs.closeSync(fd);}
+ return hash.digest("hex");
+};
 const hexKey=value=>{
  if(typeof value!=="string"||!/^[a-f0-9]{64}$/i.test(value))throw Error("TGL_BACKUP_ENCRYPTION_KEY must be 32 bytes of hex.");
  return Buffer.from(value,"hex");
