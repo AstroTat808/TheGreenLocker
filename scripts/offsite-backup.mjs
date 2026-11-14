@@ -12,6 +12,7 @@ import {execFileSync} from "node:child_process";
 import {createHash,createHmac,randomBytes,hkdfSync,createCipheriv,createDecipheriv} from "node:crypto";
 import {pipeline} from "node:stream/promises";
 import {Readable} from "node:stream";
+import {fileURLToPath} from "node:url";
 import {DatabaseSync} from "node:sqlite";
 import {createGallerySnapshot,verifyGallerySnapshot} from "./gallery-backup.mjs";
 
@@ -286,4 +287,15 @@ export function startScheduledOffsiteBackups({guard,dataDirectory,dbPath,env=pro
  handle.unref();
  setImmediate(()=>void check());
  return ()=>{stopped=true;clearInterval(handle);};
+}
+
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ const [command,encrypted,targetDirectory]=process.argv.slice(2);
+ if(command!=="restore"||!encrypted||!targetDirectory){
+  console.error("Usage: TGL_BACKUP_ENCRYPTION_KEY=<key> node scripts/offsite-backup.mjs restore <archive.tglbk> <NEW-isolated-directory>");
+  process.exitCode=2;
+ }else restoreEncryptedBackup({
+  encrypted,masterHex:process.env.TGL_BACKUP_ENCRYPTION_KEY,targetDirectory
+ }).then(result=>console.info("Isolated restore verified:",JSON.stringify(result)))
+  .catch(error=>{console.error("Recovery blocked:",error.message);process.exitCode=1;});
 }
