@@ -444,7 +444,7 @@ test("administrator can manage draft products and stock without sales actions",a
  const treatSlot=mobileProject?"treat-02":"treat-01";
  const treatRoot="#edit-"+treatSlot;
  const sampleImage=Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64");
+  "iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAM0lEQVR4nO3NMQ0AMAgAsLEbHcjAvyxkkJDWQCO73oa/sorFYrFYLBaLxWKxWCwWi4/GA0xTAMBzt/a8AAAAAElFTkSuQmCC","base64");
  await page.locator(treatRoot+" summary").click();
  const batchForm=page.locator('[data-concept-upload][data-slot="'+treatSlot+'"]');
  await expect(batchForm.locator('input[type=file]')).toHaveAttribute("multiple","");
