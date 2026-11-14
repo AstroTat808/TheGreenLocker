@@ -15,6 +15,7 @@ import {Readable} from "node:stream";
 import {fileURLToPath} from "node:url";
 import {DatabaseSync} from "node:sqlite";
 import {createGallerySnapshot,verifyGallerySnapshot} from "./gallery-backup.mjs";
+import {recordBackupEvent,dispatchBackupFailureAlert,readBackupPolicy} from "../private/backup-operations.mjs";
 
 const MAGIC=Buffer.from("TGLBK1","ascii");
 const HEADER_BYTES=MAGIC.length+16+12;
@@ -384,18 +385,46 @@ export function startScheduledOffsiteBackups({guard,dataDirectory,dbPath,env=pro
  const masterHex=env.TGL_BACKUP_ENCRYPTION_KEY;
  hexKey(masterHex);
  const store=createS3Store(env);
+ const secondaryConfigured=!!env.TGL_BACKUP_SECONDARY_S3_ENDPOINT;
+ const secondary=secondaryConfigured?createS3Store(env,"TGL_BACKUP_SECONDARY_S3_"):null;
+ if(env.TGL_BACKUP_REQUIRE_SECONDARY==="1"&&!secondary)
+  throw Error("Second independent encrypted backup is required but missing.");
  let busy=false,stopped=false;
  const check=async()=>{
   if(stopped||busy)return;
   busy=true;
   try{
    const result=await guard.exclusive(()=>runAndVerifyOffsiteBackup({
-    dataDirectory,dbPath,masterHex,objectStore:store
+    dataDirectory,dbPath,masterHex,objectStore:store,secondaryStore:secondary,
+    requireSecondary:env.TGL_BACKUP_REQUIRE_SECONDARY==="1"
    }));
-   if(!result.skipped)console.info("Offsite backup verified:",result.objectKey,
-     "images:",result.images,"users:",result.users);
-  }catch(e){console.error("Offsite backup failure:",e instanceof Error?e.message:"Unknown error");}
-  finally{busy=false;}
+   if(!result.skipped){
+    recordBackupEvent(dataDirectory,{type:"verified",target:secondary?"dual":"railway",
+      code:secondary?"TWO_RESTORES":"PRIMARY_RESTORE"});
+    console.info("Offsite backup verified:",result.objectKey,
+     "images:",result.images,"users:",result.users,
+     "independent:",secondary?"verified":"not-configured");
+    try{
+     const plan=await enforceBackupRetention({dataDirectory,objectStore:store,
+      secondaryStore:secondary,policy:readBackupPolicy(dataDirectory,env),env});
+     recordBackupEvent(dataDirectory,{type:"retention",target:"railway",
+      code:plan.mode==="enforced"?"DELETED_"+plan.deleted:"DRY_RUN_"+plan.eligible.length});
+    }catch(error){
+     recordBackupEvent(dataDirectory,{type:"failure",target:"retention",
+      code:"RETENTION_AUDIT_FAILED",reason:error?.message});
+     await dispatchBackupFailureAlert({directory:dataDirectory,
+      reason:"Retention audit failed",env});
+     console.error("Backup retention inventory unavailable.");
+    }
+   }
+  }catch(e){
+   recordBackupEvent(dataDirectory,{type:"failure",target:"backup",
+    code:"BACKUP_VERIFY_FAILED",reason:e instanceof Error?e.message:"Unknown failure"});
+   const alert=await dispatchBackupFailureAlert({directory:dataDirectory,
+    reason:"Encrypted snapshot verification failed",env});
+   console.error("Offsite backup failure:",e instanceof Error?e.message:"Unknown error",
+    "alert:",alert.delivery);
+  }finally{busy=false;}
  };
  const handle=setInterval(()=>void check(),60*60*1000);
  handle.unref();
