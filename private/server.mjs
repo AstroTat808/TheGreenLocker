@@ -152,7 +152,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    // PassKit callbacks do not carry browser cookies. Validate the ApplePass
    // per-pass HMAC before any session-based routing.
    if (await walletService.handle({req,res,url,method})) return;
-   if (method === "GET" && pathname === "/logo") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
+   if (method === "GET" && pathname === "/logo") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo-transparent.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox"});
    if (method === "GET" && pathname === "/favicon.ico") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
@@ -297,7 +297,8 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      return respond(res,200,html);
    }
    if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/gallery-preview.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/gallery-preview") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
-   if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
+   if (method === "GET" && pathname === "/assets/shield-logo-transparent.svg") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo-transparent.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox"});
+    if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method==="GET" && ["/assets/collection-botanical.svg","/assets/collection-vape.svg","/assets/collection-treat.svg"].includes(pathname))
      return respond(res,200,fs.readFileSync(path.join(root,pathname.slice(1))),"image/svg+xml",{

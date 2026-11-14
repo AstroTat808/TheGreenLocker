@@ -23,7 +23,7 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
   page.on("pageerror", err => pageErrors.push(err.message));
   await page.goto("/?preview=1");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.locator("img.hero-logo")).toHaveAttribute("src","assets/shield-logo.webp");
+  await expect(page.locator("img.hero-logo")).toHaveAttribute("src","assets/shield-logo-transparent.svg");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href","assets/shield-favicon.png");
   const toggle = page.locator("#navToggle");
   if (await toggle.isVisible()) {
@@ -64,4 +64,24 @@ test("required document semantics and no sales actions", async ({ page }) => {
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByText("NOT AN ACTIVE RETAIL STORE")).toBeVisible();
   await expect(page.locator("form[action], input[type=payment], button[name=checkout]")).toHaveCount(0);
+});
+
+
+test("transparent official crest loads without a rectangular background", async ({ page }) => {
+  await page.goto("/?preview=1");
+  const result = await page.evaluate(async () => {
+    const response = await fetch("/assets/shield-logo-transparent.svg");
+    if (!response.ok) throw new Error("Transparent crest request failed");
+    const text = await response.text();
+    const svg = new DOMParser().parseFromString(text, "image/svg+xml");
+    const image = new Image();
+    image.src = "/assets/shield-logo-transparent.svg";
+    await image.decode();
+    return {
+      masked: !!svg.querySelector('mask#shield-cutout path[fill="#fff"]'),
+      imageInsideMask: svg.querySelector('image')?.getAttribute("mask") === "url(#shield-cutout)",
+      logoLoaded: image.naturalWidth === 800 && image.naturalHeight === 800
+    };
+  });
+  expect(result).toEqual({masked:true,imageInsideMask:true,logoLoaded:true});
 });
