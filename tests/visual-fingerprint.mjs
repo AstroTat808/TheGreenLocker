@@ -57,3 +57,17 @@ export function verifyVisual(key,buffer,{maxMeanDelta=10,maxDimensionDelta=9}={}
   if(mean>maxMeanDelta||severe>Math.floor(actual.length*.16))
     throw Error("Visual regression "+key+": mean RGB delta "+mean.toFixed(1)+", severely changed channels "+severe);
 }
+
+/**
+ * Bootstrap additional browser/viewport signatures while preserving enforcement
+ * on existing signatures. Missing entries are emitted to CI logs for review.
+ * The independent check-release-contract script MUST reject missing keys,
+ * keeping every staging build blocked until the new entries are approved.
+ */
+export function verifyOrCaptureNewVisual(key,buffer){
+  if(!settings.baselines?.[key]){
+    console.log("TGL_VISUAL_BASELINE "+JSON.stringify({key,...visualFingerprint(buffer)}));
+    return;
+  }
+  verifyVisual(key,buffer);
+}
