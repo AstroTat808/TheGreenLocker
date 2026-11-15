@@ -1548,3 +1548,24 @@ body{
 .backup-form input,.backup-form select{width:100%;min-width:0;font-size:16px}
 .backup-form button{min-height:44px}
 @media(max-width:440px){.backup-grid{grid-template-columns:minmax(0,1fr)}.backup-status{margin:8px 0 0}.backup-form{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Authenticated homepage utility navigation uses compact, always-reachable
+   links on 320–600px phones; the public ribbon retains the preview disclaimer. */
+@media(max-width:600px){
+  .site-private-bar{
+    display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:stretch;
+    min-height:0;gap:6px;
+    padding:7px max(10px,env(safe-area-inset-right)) 7px max(10px,env(safe-area-inset-left));
+  }
+  .site-private-bar>span{display:none}
+  .site-private-bar a,.site-private-bar button{
+    min-height:44px;min-width:0;white-space:nowrap;
+    padding:8px clamp(7px,2vw,10px);font-size:clamp(10px,2.65vw,12px);
+    line-height:1.15;letter-spacing:0;
+  }
+  .site-private-bar a{border:1px solid #c4a77155;background:#0b2518}
+  .site-private-bar form{display:flex;flex:none;margin:0}
+  .site-private-bar form button{width:100%}
+  .private-logo img{object-fit:contain;border-radius:0}
+}
