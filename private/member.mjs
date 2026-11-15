@@ -1,5 +1,6 @@
 import { brandIcon } from "./ui-icons.mjs";
 import { renderMemberOnboarding } from "./member-journey.mjs";
+import { renderMemberVaultDeck } from "./member-vault.mjs";
 /**
  * Member-facing presentation for the isolated development preview.
  * All interpolated account fields are HTML-escaped. No commerce functions.
@@ -104,6 +105,7 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
           '<span class="member-art-core"><img src="/logo" alt="" width="178" height="178"></span>' +
           '<span class="member-art-label">THE LOCKER IS YOURS</span></div>' +
       '</section>' +
+      renderMemberVaultDeck({onboarding,walletReady,updatesReady,memberState:user.membership_state||"active"}) +
       (onboarding ? renderMemberOnboarding(onboarding) : '') +
       '<section class="member-overview" aria-label="Your account at a glance">' +
         '<div class="member-stat"><span>ACCESS LEVEL</span><strong>' + esc(role) + '</strong><small>Private development access</small></div>' +
@@ -173,7 +175,8 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
             '<div class="member-card-actions">' +
               '<a class="member-card-download" href="/member/card.svg" download="the-green-locker-member-card.svg">Download card (SVG)</a>' +
               (walletReady
-               ? '<a class="member-card-download member-wallet-download" href="/member/wallet.pkpass">Add to Apple Wallet</a>'
+               ? '<a class="member-card-download member-wallet-download" href="/member/wallet.pkpass">Add to Apple Wallet</a>' +
+                 '<p class="member-card-motion-hint">On a compatible iPhone, open this page in Safari, tap Add to Apple Wallet, then confirm the Wallet sheet. This site cannot confirm installation.</p>'
                : '<div class="member-wallet-pending"><strong>Apple Wallet setup pending</strong><small>A signed Wallet pass becomes available after the official Apple Pass Type certificate and team identifiers are securely provisioned. No unsigned pass will be distributed.</small></div>') +
             '</div>' +
             '<div class="member-wallet-updates" aria-labelledby="wallet-updates-heading">' +
@@ -223,6 +226,6 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
         '</div>' +
       '</section>' +
       '<p class="member-footnote">PRIVATE CONCEPT ENVIRONMENT · No prices, cart, purchases, reservations, shipping or fulfillment.</p>' +
-    '</div><script src="/vault-entry.js" defer></script><script src="/member-compartments.js" defer></script><script src="/member-card-ui.js" defer></script>';
+    '</div><script src="/vault-entry.js" defer></script><script src="/member-compartments.js" defer></script><script src="/member-card-ui.js" defer></script><script src="/member-vault.js" defer></script>';
   return layout("Your private vault",content,user,user.csrf);
 }
