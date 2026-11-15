@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { verifyVisual } from "./visual-fingerprint.mjs";
+import { verifyVisual,verifyOrCaptureNewVisual } from "./visual-fingerprint.mjs";
 import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -243,6 +243,27 @@ test("invited member can register, log in, and view concept-only catalog",async(
    }
    await page.emulateMedia({reducedMotion:"no-preference"});
  }
+ // Extended member-card visual baselines: desktop, tablet and landscape iPhone.
+ const visualCases=test.info().project.name==="private-desktop-chromium"?
+   [{slug:"desktop-chromium-1440x900",width:1440,height:900},
+    {slug:"tablet-chromium-768x1024",width:768,height:1024}]:
+   [{slug:"mobile-webkit-844x390",width:844,height:390}];
+ const savedViewport=page.viewportSize();
+ await page.emulateMedia({reducedMotion:"reduce"});
+ const extendedDir=path.join("test-results","green-locker-extended-visual-qa");
+ fs.mkdirSync(extendedDir,{recursive:true});
+ for(const {slug,width,height} of visualCases){
+   await page.setViewportSize({width,height});
+   await assertNoOverflow(page);
+   await expect(page.locator("[data-card-scene]")).toBeVisible();
+   const shot=await page.locator("[data-card-scene]").screenshot({
+     path:path.join(extendedDir,"private-"+slug+"-member-card.png"),
+     animations:"disabled",mask:[page.locator("[data-member-code]")]
+   });
+   verifyOrCaptureNewVisual("private-"+slug+"-member-card",shot);
+ }
+ await page.setViewportSize(savedViewport);
+ await page.emulateMedia({reducedMotion:"no-preference"});
  await page.getByRole("link",{name:"Concept catalog"}).click();
  await expect(page.getByRole("heading",{name:/THE COLLECTION VAULT/i})).toBeVisible();
  const portal=page.locator("#locker-entry-portal");
@@ -403,6 +424,40 @@ test("administrator can manage draft products and stock without sales actions",a
    verifyVisual("private-mobile-webkit-375-admin",shot);
    await assertNoOverflow(page);
  }
+ // Regression coverage for administration navigation and release metrics on
+ // desktop, tablet and landscape iPhone. No session or form mutations.
+ const qaCases=mobileProject?[{slug:"mobile-webkit-844x390",width:844,height:390}]:
+   [{slug:"desktop-chromium-1440x900",width:1440,height:900},
+    {slug:"tablet-chromium-768x1024",width:768,height:1024}];
+ const originalViewport=page.viewportSize();
+ const qualityDir=path.join("test-results","green-locker-extended-visual-qa");
+ fs.mkdirSync(qualityDir,{recursive:true});
+ await page.emulateMedia({reducedMotion:"reduce"});
+ for(const {slug,width,height} of qaCases){
+   await page.setViewportSize({width,height});
+   await assertNoOverflow(page);
+   const shot=await page.locator(".private-title").first().screenshot({
+     path:path.join(qualityDir,"private-"+slug+"-admin.png"),animations:"disabled"
+   });
+   verifyOrCaptureNewVisual("private-"+slug+"-admin",shot);
+   await page.goto("/admin/quality");
+   await expect(page.getByRole("heading",{name:/Release Quality/})).toBeVisible();
+   await expect(page.getByText("Visual references")).toBeVisible();
+   await expect(page.getByText("Shield delivery")).toBeVisible();
+   await assertNoOverflow(page);
+   const data=await page.request.get("/admin/quality.json");
+   expect(data.status()).toBe(200);
+   const metrics=await data.json();
+   expect(metrics.visual.mode).toBe("enforce");
+   expect(metrics.logo.savedPercent).toBeGreaterThan(10);
+   const qualityHero=await page.locator(".quality-hero").screenshot({
+     path:path.join(qualityDir,"private-"+slug+"-quality-hero.png"),animations:"disabled"
+   });
+   verifyOrCaptureNewVisual("private-"+slug+"-quality-hero",qualityHero);
+   await page.goto("/admin");
+ }
+ await page.setViewportSize(originalViewport);
+ await page.emulateMedia({reducedMotion:"no-preference"});
  await page.getByRole("link",{name:"Backups"}).click();
  await expect(page).toHaveURL(/\/admin\/backups$/);
  await expect(page.getByRole("heading",{name:"Encrypted Backup Operations"})).toBeVisible();

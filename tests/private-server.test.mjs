@@ -40,6 +40,11 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  let mark=Buffer.from(await response.arrayBuffer());
  assert.match(mark.toString("utf8"),/<mask id="shield-cutout"/);
  assert.match(mark.toString("utf8"),/data:image\/webp;base64/);
+ assert.match(response.headers.get("cache-control"),/public, max-age=3600/);
+ assert.ok(response.headers.get("etag"));
+ const logoEtag=response.headers.get("etag");
+ response=await req("/logo",{headers:{"If-None-Match":logoEtag}});
+ assert.equal(response.status,304,"The unchanged official crest should revalidate from cache.");
  response=await req("/favicon.ico");assert.equal(response.status,200);
  assert.equal(response.headers.get("content-type"),"image/png");
  mark=Buffer.from(await response.arrayBuffer());
@@ -261,6 +266,8 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(response.status,200);
  response=await req("/catalog",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  response=await req("/admin",{headers:{Cookie:cookie}});assert.equal(response.status,403);
+ response=await req("/admin/quality",{headers:{Cookie:cookie}});assert.equal(response.status,403,"Member must never view release-quality diagnostics.");
+ response=await req("/admin/quality.json");assert.equal(response.status,303,"Anonymous JSON quality request must require login.");
  response=await req("/admin/wallet");assert.equal(response.status,303,"Anonymous Wallet dashboard requires login.");
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,403,"Members cannot access Wallet monitoring.");
@@ -274,6 +281,9 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,303);
  assert.equal(response.headers.get("location"),"/admin/mfa","Wallet admin route inherits MFA.");
+ response=await req("/admin/quality",{headers:{Cookie:cookie}});
+ assert.equal(response.status,303);
+ assert.equal(response.headers.get("location"),"/admin/mfa","Release dashboard requires administrator MFA.");
  response=await req("/admin/assortment",{headers:{Cookie:cookie}});
  assert.equal(response.status,303);
  assert.equal(response.headers.get("location"),"/admin/mfa","Assortment editing inherits administrator MFA.");
@@ -293,6 +303,22 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  html=await response.text();
  assert.match(html,/href="\/admin\/wallet"/,"Admin can navigate to Wallet Operations.");
  assert.match(html,/href="\/admin\/assortment"/,"Admin can navigate to Assortment Studio.");
+ assert.match(html,/href="\/admin\/quality"/,"Admin can navigate to release-quality dashboard.");
+ response=await req("/admin/quality",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200,"MFA-verified admins can read release quality.");
+ const qualityMarkup=await response.text();
+ assert.match(qualityMarkup,/Release <em>Quality/);
+ assert.match(qualityMarkup,/Visual references/);
+ assert.match(qualityMarkup,/Brotli response/);
+ response=await req("/admin/quality.json",{headers:{Cookie:cookie}});
+ assert.equal(response.status,200);
+ assert.match(response.headers.get("content-type"),/application\/json/);
+ const quality=await response.json();
+ assert.equal(quality.visual.mode,"enforce");
+ assert.equal(quality.budgets.passed,quality.budgets.total);
+ assert.ok(quality.logo.savedPercent>10);
+ assert.equal(quality.runtime.state,"serving");
+
  response=await req("/admin/wallet",{headers:{Cookie:cookie}});
  assert.equal(response.status,200,"MFA-verified admins can view Wallet operations.");
  const monitorHtml=await response.text();

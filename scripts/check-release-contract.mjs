@@ -10,7 +10,11 @@ const required=[
     [320,375,430].map(width=>"public-"+browser+"-"+width+"-collection-card")),
   ...[320,375,430].map(width=>"private-mobile-webkit-"+width+"-member-card"),
   ...[320,375,430].map(width=>"private-mobile-webkit-"+width+"-botanicals"),
-  "private-mobile-webkit-375-admin"
+  "private-mobile-webkit-375-admin",
+  ...["desktop-chromium-1440x900","tablet-chromium-768x1024","mobile-webkit-844x390"].flatMap(slug=>
+    ["hero","collection-card"].map(area=>"public-"+slug+"-"+area)),
+  ...["desktop-chromium-1440x900","tablet-chromium-768x1024","mobile-webkit-844x390"].flatMap(slug=>
+    ["member-card","admin","quality-hero"].map(area=>"private-"+slug+"-"+area))
 ];
 for(const key of required){
   const entry=manifest.baselines?.[key];
