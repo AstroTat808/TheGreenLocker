@@ -45,7 +45,17 @@ process.env.TGL_INVITE_CODE=fixture.inviteCode;
 process.env.TGL_MFA_ENCRYPTION_KEY=fixture.mfaKey;
 process.env.TGL_DB_PATH=path.join(dir,"preview.sqlite");
 process.env.TGL_OUTBOX_PATH=path.join(dir,"email-outbox.ndjson");
-const origin=process.env.WORKSHOP_PREVIEW_ORIGIN || ("http://127.0.0.1:"+port);
+const cloud=host==="0.0.0.0" && process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW==="1";
+// Never issue 127.0.0.1 invitation or verification links from the HTTPS preview.
+const candidateOrigin=process.env.WORKSHOP_PREVIEW_ORIGIN || process.env.TGL_PUBLIC_ORIGIN ||
+  (cloud?"https://"+(process.env.RAILWAY_PUBLIC_DOMAIN || "greenlocker-preview-web-staging.up.railway.app"):
+    "http://127.0.0.1:"+port);
+const parsedOrigin=new URL(candidateOrigin);
+if(cloud && (parsedOrigin.protocol!=="https:" || parsedOrigin.username ||
+   parsedOrigin.password || parsedOrigin.port || parsedOrigin.pathname!=="/" ||
+   parsedOrigin.search || parsedOrigin.hash || !/^[a-z0-9.-]+$/i.test(parsedOrigin.hostname)))
+  throw new Error("Cloud preview origin must be a clean HTTPS hostname.");
+const origin=parsedOrigin.origin;
 const {server,db}=createApp({inviteCode:fixture.inviteCode,dbPath:process.env.TGL_DB_PATH,publicOrigin:origin});
 // Quiesce all authenticated writes during the consistent daily data snapshot.
 const backupGuard=installBackupWriteGuard(server);
