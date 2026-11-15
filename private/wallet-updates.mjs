@@ -123,11 +123,14 @@ export function createWalletUpdateService({db,respond,buildPass,env=process.env}
   // The deployment does not expose callbacks until explicitly configured.
   const configured=walletUpdatesConfigured(env);
   const typeId=env.TGL_WALLET_PASS_TYPE_ID||"";
+  const hasMemberState=db.prepare("PRAGMA table_info(users)").all().some(x=>x.name==="membership_state");
   const authMember=(serial,req)=>{
     if(!serialRE.test(serial))return null;
     const member=db.prepare("SELECT id,member_code,wallet_updates_enabled,wallet_pass_revision,"+
-      "display_name,email,card_theme,card_title,card_motto FROM users WHERE member_code=?").get(serial);
-    if(!member||member.wallet_updates_enabled!==1)return null;
+      "display_name,email,card_theme,card_title,card_motto"+
+      (hasMemberState?",membership_state":"")+" FROM users WHERE member_code=?").get(serial);
+    if(!member||member.wallet_updates_enabled!==1||
+        (hasMemberState&&member.membership_state!=="active"))return null;
     const header=req.headers.authorization||"";
     if(!/^ApplePass [A-Za-z0-9_-]{32,128}$/.test(header))return null;
     return safeEqual(header.slice("ApplePass ".length),passAuthenticationToken(serial,env))
@@ -176,7 +179,9 @@ export function createWalletUpdateService({db,respond,buildPass,env=process.env}
       const rows=db.prepare(
         "SELECT u.member_code,u.wallet_pass_revision FROM wallet_registrations r "+
         "JOIN users u ON u.id=r.user_id "+
-        "WHERE r.device_id=? AND u.wallet_updates_enabled=1 AND u.wallet_pass_revision>? "+
+        "WHERE r.device_id=? AND u.wallet_updates_enabled=1 "+
+        (hasMemberState?"AND u.membership_state='active' ":"")+
+        "AND u.wallet_pass_revision>? "+
         "ORDER BY u.wallet_pass_revision LIMIT 100"
       ).all(device,previous);
       if(!rows.length){plain(res,204);return true;}
