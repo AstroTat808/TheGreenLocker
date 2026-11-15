@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { officialLogoIntegrity } from "./logo-integrity.mjs";
 
 const root = process.cwd();
+assert.equal(officialLogoIntegrity(root).pass,true,"Official shield artwork bytes changed; explicit brand approval required.");
 const read = (name) => fs.readFileSync(path.join(root,name),"utf8");
 const html = read("index.html");
 const css = read("styles.css");
