@@ -36,6 +36,8 @@ export function createMemberInvitation(db,{actorId,email,validDays=3,at=Date.now
   const target=normalizeInviteEmail(email),days=Number(validDays);
   if(!target||![1,3,7].includes(days)||!Number.isSafeInteger(actorId)||actorId<1)
     throw new TypeError("Invalid invitation details");
+  if(db.prepare("SELECT role FROM users WHERE id=?").get(actorId)?.role!=="admin")
+    throw new Error("Administrator authorization required");
   const existing=db.prepare("SELECT id FROM users WHERE email=?").get(target);
   if(existing)throw new Error("This email already has a member account");
   const token=randomBytes(32).toString("base64url"),expiresAt=at+days*DAY;
@@ -83,6 +85,8 @@ export function registerInvitedMember(db,{email,token,salt,passwordHash,at=Date.
 }
 export function revokeMemberInvitation(db,{actorId,id,at=Date.now()}){
   if(!Number.isSafeInteger(id)||id<=0)throw new TypeError("Invalid invitation");
+  if(db.prepare("SELECT role FROM users WHERE id=?").get(actorId)?.role!=="admin")
+    throw new Error("Administrator authorization required");
   const result=db.prepare("UPDATE member_invitations SET revoked_at=? "+
     "WHERE id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?")
     .run(at,id,at);
@@ -93,6 +97,8 @@ export function revokeMemberInvitation(db,{actorId,id,at=Date.now()}){
 export function changeMembershipState(db,{actorId,userId,action,at=Date.now()}){
   const next={approve:"active",suspend:"suspended",reactivate:"active"}[action];
   if(!next||!Number.isSafeInteger(userId)||userId<=0)throw new TypeError("Invalid member action");
+  if(db.prepare("SELECT role FROM users WHERE id=?").get(actorId)?.role!=="admin")
+    throw new Error("Administrator authorization required");
   db.exec("BEGIN IMMEDIATE");
   try{
     const target=db.prepare("SELECT id,role,membership_state,email_verified_at FROM users WHERE id=?").get(userId);
@@ -106,6 +112,7 @@ export function changeMembershipState(db,{actorId,userId,action,at=Date.now()}){
       .run(next,at,userId);
     if(action==="suspend"){
       db.prepare("DELETE FROM sessions WHERE user_id=?").run(userId);
+      db.prepare("UPDATE users SET wallet_updates_enabled=0 WHERE id=?").run(userId);
       revokeWalletRegistrations(db,userId);
     }
     db.prepare("INSERT INTO member_admin_audit(actor_id,target_user_id,action,created_at) VALUES(?,?,?,?)")
