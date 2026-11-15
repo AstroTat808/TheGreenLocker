@@ -451,12 +451,9 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
          let delivery="manual";
          // The isolated workshop has no externally verified mail sender.
          // An explicitly supplied mail transport may send a one-time invitation.
-         if(typeof mailSender==="function"){
+         if(typeof mailSender==="function" || process.env.TGL_MAIL_MODE==="resend"){
            try{
-             await mailSender({to:issued.email,subject:"Private Green Locker membership invitation",
-               text:"You have been invited to the Green Locker private design preview. "+
-                 "Create an account using this single-use link before it expires:\n"+registrationURL+
-                 "\nAccess requires verified email and administrator approval."});
+             await security.sendInvitation(issued.email,registrationURL);
              delivery="accepted";
            }catch{delivery="manual";}
          }
