@@ -75,6 +75,12 @@ export function inspectWalletCertificates(env=process.env,{at=Date.now()}={}){
   };
 }
 
+/** Only expose the Add to Apple Wallet action after valid certificates and matching key checks. */
+export function walletIssuanceReady(env=process.env,{at=Date.now()}={}){
+  const result=inspectWalletCertificates(env,{at});
+  return result.signingConfigured && result.keyCheck==="valid" &&
+    result.certificates.every(c=>["healthy","warning","critical"].includes(c.state));
+}
 export function walletOperationsSnapshot(db,{env=process.env,at=Date.now()}={}){
   const cert=inspectWalletCertificates(env,{at});
   const metrics={
