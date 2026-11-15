@@ -222,7 +222,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      }));
    }
    if (method === "POST" && pathname === "/member/security/revoke-others") {
-     if(blocked(req.socket.remoteAddress||"unknown",pathname,5))
+     if(blocked("member:"+user.id,pathname,5))
        return respond(res,429,"Too many security attempts","text/plain; charset=utf-8");
      const params=await formBody(req);
      if(!safeCompare(bodyValue(params,"csrf"),user.csrf))
