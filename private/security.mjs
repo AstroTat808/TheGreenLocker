@@ -250,5 +250,14 @@ export function createSecurity({db,dbPath,origin,mailSender,respond,redirect,for
   }
   return false;
  }
- return {issue,publicRoutes,mfaRoutes};
+ async function sendInvitation(to,url){
+   if(typeof to!=="string"||to.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||
+      typeof url!=="string"||!url.startsWith(origin+"/register?invite="))
+     throw new TypeError("Invalid invitation delivery request");
+   await mail({to,subject:"Private Green Locker membership invitation",
+     text:"You have been invited to the Green Locker private design preview. "+
+       "Use this single-use link before it expires:\n"+url+
+       "\nYou must verify your email and be approved by an administrator to sign in."});
+ }
+ return {issue,publicRoutes,mfaRoutes,sendInvitation};
 }
