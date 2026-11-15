@@ -97,8 +97,8 @@ export function memberPlatformSnapshot(db,{at=Date.now(),walletReady=false,updat
     "FROM member_journey").get();
   const sessions=db.prepare("SELECT COUNT(*) total,COUNT(DISTINCT user_id) activeAccounts "+
     "FROM sessions WHERE expires_at>?").get(at);
-  const conceptCount=db.prepare("SELECT COUNT(*) total FROM assortment_entries").get().total;
-  const mediaCount=db.prepare("SELECT COUNT(*) total FROM assortment_gallery_images").get().total;
+  const conceptCount=db.prepare("SELECT COUNT(*) total FROM collection_concepts").get().total;
+  const mediaCount=db.prepare("SELECT COUNT(*) total FROM collection_media").get().total;
   return {
     totals:{accounts:totals.total,verified:totals.verified,members:totals.members,admins:totals.admins,
       named:totals.named,activeAccounts:sessions.activeAccounts,activeSessions:sessions.total},
@@ -114,7 +114,7 @@ export function renderMemberOperationsPage(snapshot,{layout,user,csrf}) {
     ["Registered accounts",snapshot.totals.accounts,"All private-preview accounts"],
     ["Verified emails",snapshot.totals.verified,"Mailbox ownership confirmed"],
     ["Active members",snapshot.totals.activeAccounts,"Accounts with an unexpired session"],
-    ["Card setups",snapshot.engagement.cardPersonalizations,"Members who saved card preferences"],
+    ["Card designs",snapshot.engagement.cardPersonalizations,"Members who saved card preferences"],
     ["Collection visits",snapshot.engagement.collectionsOpened,"Accounts that opened draft collections"],
     ["Security reviews",snapshot.engagement.securityReviews,"Accounts that viewed session controls"],
     ["Wallet downloads",snapshot.engagement.walletPassDownloads,"Issued pass downloads, not confirmed installs"],
