@@ -62,7 +62,7 @@ export function renderMemberOnboarding(snapshot) {
       '<div class="member-setup-copy"><strong>'+escapeHtml(step.name)+'</strong>'+
       '<small>'+escapeHtml(step.description)+'</small></div>'+
       '<span class="member-setup-status">'+(step.complete?'Complete':'Not started')+'</span>'+
-      (step.complete?'':'<a href="'+step.href+'" class="member-setup-link">Continue</a>')+
+      (step.complete&&step.id!=="security"?'':'<a href="'+step.href+'" class="member-setup-link">'+(step.complete?'Manage':'Continue')+'</a>')+
     '</li>').join("");
   const wallet=snapshot.wallet.signingReady?
     '<p><strong>Apple Wallet:</strong> '+escapeHtml(snapshot.wallet.status)+
@@ -159,7 +159,7 @@ export function renderMemberSecurityPage({user,sessionCount,csrf,notice="",layou
           '<label for="security-password">Confirm your password to sign out other sessions</label>'+
           '<input id="security-password" name="password" type="password" minlength="12" maxlength="128" autocomplete="current-password" required>'+
           '<button class="private-button" type="submit">Sign out other sessions</button>'+
-        '</form>'+(noticeMessage?'<p class="form-ok" role="status">'+escapeHtml(noticeMessage)+'</p>':'')+
+        '</form>'+(noticeMessage?'<p class="'+(notice==="password"?"form-error":"form-ok")+'" role="status">'+escapeHtml(noticeMessage)+'</p>':'')+
         '<p class="member-security-note">Your current session remains signed in. Password resets also revoke all sessions.</p>'+
       '</section>'+
       '<section class="private-panel"><h2>Recovery and verification</h2>'+
