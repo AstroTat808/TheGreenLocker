@@ -140,6 +140,14 @@ test("pass registration and revisions are per-member, private, opt-in and queue 
   // An explicit opt-out also revokes any registrations and queued notifications.
   revokeWalletRegistrations(db,memberId);
   assert.equal(db.prepare("SELECT COUNT(*) count FROM wallet_push_jobs").get().count,0);
+  db.prepare("UPDATE users SET membership_state='suspended' WHERE id=?").run(memberId);
+  response=await req(pass,"GET",{authorization:auth});
+  assert.equal(response.status,401,"Suspended accounts must not obtain Wallet passes even with an old valid ApplePass token.");
+  response=await req(route,"POST",{"Content-Type":"application/json",authorization:auth},
+    JSON.stringify({pushToken:"c".repeat(64)}));
+  assert.equal(response.status,401,"Suspended accounts must not reregister devices.");
+  response=await req(collection+"?passesUpdatedSince=0");
+  assert.equal(response.status,204,"Suspended accounts must not appear in Wallet update lists.");
 });
 
 test("transient APNs failures back off; invalid device tokens are pruned",async()=>{
