@@ -114,6 +114,8 @@ test("invited member can register, log in, and view concept-only catalog",async(
  const cardSvg=await cardResponse.text();
  expect(cardSvg).toContain(memberCode);
  expect(cardSvg).toContain("data:image/webp;base64,");
+ expect(cardSvg).toContain('id="card-shield-cutout"');
+ expect(cardSvg).toContain('mask="url(#card-shield-cutout)"');
  expect(cardSvg).not.toContain(email);
  await page.locator('.member-compartment[href="#member-card"]').click();
  await expect(page).toHaveURL(/#member-card$/);
@@ -326,6 +328,29 @@ test("invited member can register, log in, and view concept-only catalog",async(
          path:path.join(directory,width+"-collection-"+name+".png"),animations:"disabled"
        });
      }
+   }
+ }
+ // The authenticated brand homepage has a compact, transparent crest and a
+ // single-row preview utility bar; all actions remain available on iPhone.
+ await page.goto("/?preview=1");
+ await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href","assets/shield-logo-transparent.svg");
+ await expect(page.locator(".site-private-bar").getByRole("link",{name:"Catalog"})).toBeVisible();
+ await expect(page.locator(".site-private-bar").getByRole("link",{name:"Collections"})).toBeVisible();
+ await expect(page.locator("img.hero-logo")).toHaveAttribute("src","assets/shield-logo-transparent.svg");
+ if (test.info().project.name === "private-mobile-webkit") {
+   const directory=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(directory,{recursive:true});
+   for(const width of [320,375,430]){
+     await page.setViewportSize({width,height:770});
+     await assertNoOverflow(page);
+     const metrics=await page.locator(".site-private-bar").evaluate(el=>({
+       width:el.clientWidth,content:el.scrollWidth,height:el.getBoundingClientRect().height
+     }));
+     expect(metrics.content).toBeLessThanOrEqual(metrics.width+1);
+     expect(metrics.height).toBeLessThanOrEqual(64);
+     await page.locator(".hero").screenshot({
+       path:path.join(directory,width+"-brand-home-hero.png"),animations:"disabled"
+     });
    }
  }
  await page.getByRole("button",{name:"Log out"}).click();
