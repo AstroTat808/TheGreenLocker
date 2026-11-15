@@ -40,7 +40,13 @@ if (fs.existsSync(credentialsPath)) {
 }
 if (!fixture.inviteCode || Buffer.from(fixture.mfaKey,"base64").length!==32) throw new Error("Invalid preview credentials file.");
 process.env.NODE_ENV="development";
-process.env.TGL_MAIL_MODE="outbox";
+// Cloud Workshop can use a verified Resend sender when the operator explicitly
+// configures it. Otherwise preserve a private development outbox; never pretend
+// a remote member received a verification message.
+const cloudMail=host==="0.0.0.0" && process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW==="1";
+const enableResend=cloudMail && process.env.TGL_MAIL_MODE==="resend" &&
+  Boolean(process.env.TGL_RESEND_API_KEY && process.env.TGL_EMAIL_FROM);
+process.env.TGL_MAIL_MODE=enableResend?"resend":"outbox";
 process.env.TGL_INVITE_CODE=fixture.inviteCode;
 process.env.TGL_MFA_ENCRYPTION_KEY=fixture.mfaKey;
 process.env.TGL_DB_PATH=path.join(dir,"preview.sqlite");
@@ -117,7 +123,7 @@ server.listen(port,host,()=>{
    console.log("Credentials are not printed in cloud logs.");
  }
  console.log("Admin MFA enrollment is required.");
- console.log("Development email outbox: "+process.env.TGL_OUTBOX_PATH);
+ console.log(enableResend?"Invitation/verification email: verified transactional sender configured":"Development email outbox: "+process.env.TGL_OUTBOX_PATH);
  console.log("DO NOT PUBLISH THIS DEV SERVER OR ENABLE SALES.");
  console.log("Credentials and sample data are stored in a gitignored local directory.\n");
  startScheduledOffsiteBackups({guard:backupGuard,dataDirectory:dir,dbPath:process.env.TGL_DB_PATH});
