@@ -128,7 +128,7 @@ export function renderMemberOperationsPage(snapshot,{layout,user,csrf}) {
     '<section class="private-title"><span class="eyebrow">PRIVATE ADMIN / MEMBERSHIP</span>'+
       '<h1>Member <em>Operations.</em></h1>'+
       '<p>Account and onboarding progress across this private staging instance. These are aggregate records, not retail customer metrics.</p>'+
-      '<nav class="wallet-monitor-nav" aria-label="Member operations"><a class="wallet-monitor-nav-link" href="/admin">Admin dashboard</a>'+
+      '<nav class="wallet-monitor-nav" aria-label="Member operations"><a class="wallet-monitor-nav-link" href="/admin/members/manage">Manage members &amp; invitations</a><a class="wallet-monitor-nav-link" href="/admin">Admin dashboard</a>'+
       '<a class="wallet-monitor-nav-link" href="/admin/wallet">Wallet operations</a>'+
       '<a class="wallet-monitor-nav-link" href="/admin/quality">Release quality</a></nav></section>'+
     '<section class="member-operations-grid" aria-label="Membership metrics">'+cards+'</section>'+
