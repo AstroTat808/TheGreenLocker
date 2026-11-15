@@ -1,3 +1,4 @@
+import { brandIcon } from "./ui-icons.mjs";
 /**
  * Three luxury collection concepts, populated from the MFA-protected assortment
  * studio. The optional store in SQLite contains ONLY non-transactional drafts.
@@ -47,9 +48,9 @@ function galleryImages(row,family,compact=false){
   ' src="'+item.src+'" alt="'+html(item.alt)+'" loading="lazy" decoding="async">').join("");
  const controls=assets.length>1?
   '<div class="concept-gallery-tools" role="group" aria-label="View more '+html(row.title)+' concept images">'+
-   '<button type="button" data-gallery-dir="-1" aria-label="Previous '+html(row.title)+' image">‹</button>'+
+   '<button type="button" data-gallery-dir="-1" aria-label="Previous '+html(row.title)+' image">'+brandIcon("chevron-left")+'</button>'+
    '<span data-gallery-counter aria-live="polite">1 / '+assets.length+'</span>'+
-   '<button type="button" data-gallery-dir="1" aria-label="Next '+html(row.title)+' image">›</button></div>':"";
+   '<button type="button" data-gallery-dir="1" aria-label="Next '+html(row.title)+' image">'+brandIcon("chevron-right")+'</button></div>':"";
  return '<div class="'+(compact?'collection-flavor-gallery':'collection-image-gallery')+
   '" data-concept-gallery>'+tags+controls+'</div>';
 }
