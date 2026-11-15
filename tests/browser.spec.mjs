@@ -114,3 +114,23 @@ test("mobile brand header and hero preserve compact proportions without clipping
     expect(m.titleWidth,"Headline clipped at "+width).toBeLessThanOrEqual(m.titleBox+1);
   }
 });
+
+test("all public direction symbols are branded vectors, not emoji on iPhone",async({page})=>{
+  await page.goto("/?preview=1");
+  await expect(page.locator(".circle-arrow svg.ui-icon")).toHaveCount(4);
+  const symbols=await page.locator(".ui-icon use").evaluateAll(nodes=>
+    nodes.map(el=>el.getAttribute("href")));
+  expect(symbols.length).toBeGreaterThanOrEqual(11);
+  expect(symbols.every(x=>/^assets\/ui-icons\.svg#(up-right|right|left|down|up|chevron-left|chevron-right)$/.test(x))).toBe(true);
+  const response=await page.request.get("/assets/ui-icons.svg");
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain('id="up-right"');
+  const color=await page.locator(".circle-arrow").first().evaluate(el=>({
+    fg:getComputedStyle(el).color,bg:getComputedStyle(el).backgroundColor,
+    icon:getComputedStyle(el.querySelector("svg")).stroke
+  }));
+  expect(color.fg).toBe("rgb(233, 199, 140)");
+  expect(color.bg).toBe("rgb(14, 45, 29)");
+  expect(color.icon).toBe("rgb(233, 199, 140)");
+  expect(await page.locator("a,button").allTextContents()).not.toContain("↗");
+});
