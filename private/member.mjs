@@ -1,4 +1,5 @@
 import { brandIcon } from "./ui-icons.mjs";
+import { renderMemberOnboarding } from "./member-journey.mjs";
 /**
  * Member-facing presentation for the isolated development preview.
  * All interpolated account fields are HTML-escaped. No commerce functions.
@@ -68,7 +69,7 @@ export function renderVaultFeedback() {
     '</section>';
 }
 
-export function renderMemberPage({user, productCount, layout, csrfField, memberCode, walletReady = false, updatesReady = false, updatesSaved = false, saved = false, cardSaved = false}) {
+export function renderMemberPage({user, productCount, layout, csrfField, memberCode, walletReady = false, updatesReady = false, onboarding = null, updatesSaved = false, saved = false, cardSaved = false}) {
   const rawName = friendlyName(user);
   const name = esc(rawName);
   const terminalPunctuation = /[.!?]$/u.test(rawName) ? "" : ".";
@@ -103,6 +104,7 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
           '<span class="member-art-core"><img src="/logo" alt="" width="178" height="178"></span>' +
           '<span class="member-art-label">THE LOCKER IS YOURS</span></div>' +
       '</section>' +
+      (onboarding ? renderMemberOnboarding(onboarding) : '') +
       '<section class="member-overview" aria-label="Your account at a glance">' +
         '<div class="member-stat"><span>ACCESS LEVEL</span><strong>' + esc(role) + '</strong><small>Private development access</small></div>' +
         '<div class="member-stat"><span>IN THE ARCHIVE</span><strong>' + count + ' files</strong><small>Concept records only</small></div>' +
