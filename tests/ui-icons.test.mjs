@@ -17,11 +17,16 @@ test("all direction icons use one inert, accessible SVG symbol system",()=>{
 });
 
 test("private collection carousel keeps accessible names with vector navigation",()=>{
-  const assortment={vapes:[{slot_order:1,title:"Example",description:"Draft",images:[
-    {src:"/media/sample-a",alt:"Example view one"},
-    {src:"/media/sample-b",alt:"Example view two"}
-  ]}]};
+  const assortment={entries:{vapes:[{
+    id:"vape-flavor-01",preview_visible:1,title:"Example",description:"Draft",
+    images:[{file_key:"a".repeat(32)+".webp",alt_text:"First view"},
+            {file_key:"b".repeat(32)+".webp",alt_text:"Second view"}]
+  }]}};
   const html=renderCollectionConcepts(assortment);
+  assert.match(html,/aria-label="Previous Example image"/);
+  assert.match(html,/aria-label="Next Example image"/);
+  assert.ok(html.includes('/assets/ui-icons.svg#chevron-left'));
+  assert.ok(html.includes('/assets/ui-icons.svg#chevron-right'));
   // Gallery controls stay labeled even though their glyph is decorative.
   assert.ok(!html.includes("image\">‹</button>"));
   assert.ok(!html.includes("image\">›</button>"));
