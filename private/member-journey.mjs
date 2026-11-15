@@ -113,11 +113,11 @@ export function renderMemberOperationsPage(snapshot,{layout,user,csrf}) {
   const cards=[
     ["Registered accounts",snapshot.totals.accounts,"All private-preview accounts"],
     ["Verified emails",snapshot.totals.verified,"Mailbox ownership confirmed"],
-    ["Active members",snapshot.totals.activeAccounts,"Accounts with an unexpired session"],
+    ["Signed-in accounts",snapshot.totals.activeAccounts,"Accounts with an unexpired session"],
     ["Card designs",snapshot.engagement.cardPersonalizations,"Members who saved card preferences"],
-    ["Collection visits",snapshot.engagement.collectionsOpened,"Accounts that opened draft collections"],
+    ["Catalog explorers",snapshot.engagement.collectionsOpened,"Accounts that opened draft collections"],
     ["Security reviews",snapshot.engagement.securityReviews,"Accounts that viewed session controls"],
-    ["Wallet downloads",snapshot.engagement.walletPassDownloads,"Issued pass downloads, not confirmed installs"],
+    ["Pass-download accounts",snapshot.engagement.walletPassDownloads,"Issued pass downloads, not confirmed installs"],
     ["Media assets",snapshot.assortment.galleryImages,"Private draft collection gallery images"]
   ].map(([name,value,note])=>'<article class="member-operations-stat"><span>'+escapeHtml(name)+'</span>'+
     '<strong>'+Number(value)+'</strong><small>'+escapeHtml(note)+'</small></article>').join("");
