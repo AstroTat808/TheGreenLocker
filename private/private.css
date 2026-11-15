@@ -1569,3 +1569,12 @@ body{
   .site-private-bar form button{width:100%}
   .private-logo img{object-fit:contain;border-radius:0}
 }
+
+/* Shared branded direction icons for private/catalog/admin controls. */
+.ui-icon{display:inline-block;width:1.15em;height:1.15em;flex:none;vertical-align:-.14em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:inherit;pointer-events:none}
+.compartment-action .ui-icon{height:14px;width:14px;vertical-align:-.18em;margin-left:5px}
+.wallet-monitor-nav-link .action-icon{display:inline-flex;color:#e9c78c;margin-left:5px}
+.wallet-monitor-nav-link .ui-icon{width:17px;height:17px}
+.concept-gallery-tools button .ui-icon{width:15px;height:15px}
+.collection-flavor-gallery .concept-gallery-tools button .ui-icon{width:12px;height:12px}
+@media(prefers-reduced-motion:reduce){.ui-icon,.circle-arrow{transition:none!important;animation:none!important}}
