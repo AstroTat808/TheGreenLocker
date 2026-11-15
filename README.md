@@ -16,7 +16,7 @@ Use `npm run start:private` with `TGL_INVITE_CODE` configured for real server-en
 - Accessible mobile menu and cosmetic 21+ **preview acknowledgement** (not a legally sufficient age-verification system)
 - Four **concept-only** collection cards, brand story, and coming-soon messaging
 - Approved shield rendered with an alpha mask (`assets/shield-logo-transparent.svg`) on the homepage, authenticated navigation, collection previews, and downloadable member card
-- Matching compact shield favicon (`assets/shield-favicon.png`) for browser tabs and app branding
+- Transparent browser-tab favicon (shield SVG) and padded square PNG icon (`assets/shield-favicon.png`) for iOS home-screen and Apple Wallet branding
 - Four cinematic vault package selectors with explicit reference weights, keyboard support and reduced-motion support; visual-only, no ordering
 - The root HTML remains a visual homepage; the optional private Node server has **draft-only** product and inventory tooling. No payments, orders, checkout, shipping, or commercial claims exist
 
