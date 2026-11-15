@@ -1713,3 +1713,53 @@ body{
     flex:1;min-width:0;text-align:center;font-size:8px;
   }
 }
+
+
+/* ADMIN: Release Quality — editorial emerald and gold, readable at 320–1440px. */
+.quality-hero{max-width:1050px}
+.quality-hero p{max-width:70ch}
+.quality-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 25px}
+.quality-metric{
+  display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:8px;
+  padding:20px;border:1px solid #d6b57966;border-radius:14px;
+  background:linear-gradient(145deg,#123723,#07180f);
+  box-shadow:0 9px 27px #0004
+}
+.quality-metric>span:first-child{font:700 10px/1.45 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#d5b87c}
+.quality-metric>strong{font:normal clamp(25px,3vw,39px)/1.14 Georgia,serif;color:#f8e4b8;overflow-wrap:anywhere}
+.quality-metric small{margin-top:auto;font:12px/1.6 Arial,sans-serif;color:#b7cab9}
+.quality-pill{display:inline-flex;align-items:center;min-height:26px;max-width:100%;padding:4px 9px;border-radius:30px;border:1px solid #cab07388;letter-spacing:.025em;
+  font:700 10px/1.4 Arial,sans-serif;white-space:normal;color:#eddaa8}
+.quality-pass{color:#c9e9d1;border-color:#73b68c8c;background:#18412a}
+.quality-fail{color:#ffd0bf;border-color:#e49e8488;background:#412218}
+.quality-unknown{color:#e9d6b1;border-color:#c5a3646d;background:#322b1e}
+.quality-panel{margin:0 0 20px}
+.quality-panel h2{color:#f4dbab;margin-bottom:12px;font:normal clamp(24px,2.8vw,32px)/1.17 Georgia,serif}
+.quality-panel>p{color:#b8cab9;font-size:13px;line-height:1.7;margin:0 0 13px}
+.quality-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.quality-columns>.quality-panel{min-width:0}
+.quality-logo-savings{display:flex;gap:14px;align-items:center;margin:19px 0;padding:15px;border:1px solid #bfa06e66;
+  border-radius:11px;background:#113020}
+.quality-logo-savings strong{color:#f7d88d;font:normal clamp(32px,4vw,53px)/1 Georgia,serif}
+.quality-logo-savings span{font:12px/1.5 Arial,sans-serif;color:#d1c9ad}
+.quality-details{display:grid;gap:9px;margin:15px 0 0}
+.quality-details>div{display:grid;grid-template-columns:minmax(125px,.4fr) minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid #bda46d42}
+.quality-details dt{font:700 11px/1.55 Arial,sans-serif;color:#b3c5b6}
+.quality-details dd{margin:0;color:#f5dfb6;font:12px/1.6 Arial,sans-serif;overflow-wrap:anywhere}
+.quality-panel .scroll-table{max-width:100%;overflow-x:auto}
+.quality-panel table{width:100%;min-width:490px;border-collapse:collapse}
+.quality-panel th,.quality-panel td{text-align:left;padding:12px 10px;border-bottom:1px solid #d6b87c36;font:12px/1.5 Arial,sans-serif;color:#e0cfad}
+.quality-panel th{color:#efd499;font-size:11px;font-weight:700}
+.quality-panel td code{font-size:11px;overflow-wrap:anywhere;white-space:normal}
+@media(max-width:1040px){.quality-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+  .quality-summary{gap:9px;margin:14px 0 20px}
+  .quality-metric{padding:15px;box-shadow:none}
+  .quality-metric>strong{font-size:clamp(22px,6vw,33px)}
+  .quality-metric small{font-size:11px}
+  .quality-columns{grid-template-columns:minmax(0,1fr);gap:0}
+  .quality-panel{margin-bottom:13px;padding:17px}
+  .quality-logo-savings{gap:11px;padding:12px}
+  .quality-details>div{grid-template-columns:minmax(0,1fr);gap:3px}
+}
+@media(max-width:355px){.quality-summary{grid-template-columns:minmax(0,1fr)}}
