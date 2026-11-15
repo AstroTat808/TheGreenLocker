@@ -8,6 +8,8 @@ ENV NODE_ENV=development \
 WORKDIR /app
 RUN apk add --no-cache su-exec openssl
 COPY --chown=node:node . /app
+# Fail closed on missing visual baselines and regressions to oversized critical assets.
+RUN node scripts/check-static-site.mjs && node --test tests/performance-budget.test.mjs && node scripts/check-release-contract.mjs
 RUN mkdir -p /data && chown node:node /data
 EXPOSE 4174
 # Railway volumes are initially root-owned and hide image-time /data ownership.
