@@ -19,7 +19,7 @@ import {
   revokeWalletRegistrations,startWalletPushWorker
 } from "./wallet-updates.mjs";
 import {
-  installWalletMonitorSchema,walletOperationsSnapshot,renderWalletOperationsPage,
+  installWalletMonitorSchema,walletOperationsSnapshot,walletIssuanceReady,renderWalletOperationsPage,
   startWalletCertificateWatch
 } from "./wallet-monitor.mjs";
 import { createInventory } from "./inventory.mjs";
@@ -231,7 +231,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/member") {
      const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
      const memberCode = ensureMemberCode(db,user.id);
-     const walletReady=walletConfigured(),updatesReady=walletUpdatesConfigured();
+     const walletReady=walletIssuanceReady(),updatesReady=walletIssuanceReady()&&walletUpdatesConfigured();
      const onboarding=memberJourneySnapshot(db,user,{walletReady,updatesReady});
      return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,
        walletReady,updatesReady,onboarding,
@@ -272,7 +272,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      });
    }
    if (method === "GET" && pathname === "/member/wallet.pkpass") {
-     if (!walletConfigured()) return respond(res,503,
+     if (!walletIssuanceReady()) return respond(res,503,
        "Apple Wallet signing is not yet configured. Download the SVG preview instead.",
        "text/plain; charset=utf-8");
      try {
@@ -391,7 +391,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (pathname.startsWith("/admin")) {
      if (user.role !== "admin") return respond(res,403,layout("Access denied",'<h1>Administrator access required</h1>',user,user.csrf));
      if (method === "GET" && (pathname === "/admin/members" || pathname === "/admin/members.json")) {
-       const metrics=memberPlatformSnapshot(db,{walletReady:walletConfigured(),updatesReady:walletUpdatesConfigured()});
+       const metrics=memberPlatformSnapshot(db,{walletReady:walletIssuanceReady(),updatesReady:walletIssuanceReady()&&walletUpdatesConfigured()});
        if(pathname.endsWith(".json"))
          return respond(res,200,JSON.stringify(metrics),"application/json; charset=utf-8");
        return respond(res,200,renderMemberOperationsPage(metrics,{layout,user,csrf:user.csrf}));
