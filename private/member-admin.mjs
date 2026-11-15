@@ -95,8 +95,9 @@ export function changeMembershipState(db,{actorId,userId,action,at=Date.now()}){
   if(!next||!Number.isSafeInteger(userId)||userId<=0)throw new TypeError("Invalid member action");
   db.exec("BEGIN IMMEDIATE");
   try{
-    const target=db.prepare("SELECT id,role,membership_state FROM users WHERE id=?").get(userId);
-    if(!target||target.role!=="member"|| (action==="approve"&&target.membership_state!=="pending")||
+    const target=db.prepare("SELECT id,role,membership_state,email_verified_at FROM users WHERE id=?").get(userId);
+    if(!target||target.role!=="member"||((action==="approve"||action==="reactivate")&&target.email_verified_at===null)||
+        (action==="approve"&&target.membership_state!=="pending")||
         (action==="reactivate"&&target.membership_state!=="suspended")||
         (action==="suspend"&&target.membership_state==="suspended")){
       db.exec("ROLLBACK");return false;
@@ -148,7 +149,8 @@ export function renderMemberAdministration(snapshot,{layout,user,csrf,notice="",
     '</td></tr>').join("");
   const memberLines=snapshot.members.map(m=>{
     const options=m.membership_state==="pending"?
-      rowAction("Approve",m.id,"approve",csrf)+rowAction("Suspend",m.id,"suspend",csrf):
+      (m.email_verified_at?rowAction("Approve",m.id,"approve",csrf):'<span>Email verification pending</span>')+
+      rowAction("Suspend",m.id,"suspend",csrf):
       m.membership_state==="active"?rowAction("Suspend",m.id,"suspend",csrf):
       rowAction("Reactivate",m.id,"reactivate",csrf);
     return '<tr><td>'+esc(m.email)+'</td><td>'+esc(m.display_name||"Not set")+'</td>'+
