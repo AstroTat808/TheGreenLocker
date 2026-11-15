@@ -15,14 +15,14 @@ Use `npm run start:private` with `TGL_INVITE_CODE` configured for real server-en
 - Responsive, dependency-free static homepage (`index.html`, `styles.css`, `app.js`)
 - Accessible mobile menu and cosmetic 21+ **preview acknowledgement** (not a legally sufficient age-verification system)
 - Four **concept-only** collection cards, brand story, and coming-soon messaging
-- Approved shield-crest WebP (`assets/shield-logo.webp`) displayed throughout the public prototype and authenticated preview
-- Matching compact shield favicon (`assets/shield-favicon.png`) for browser tabs and app branding
+- Approved shield rendered with an alpha mask (`assets/shield-logo-transparent.svg`) on the homepage, authenticated navigation, collection previews, and downloadable member card
+- Transparent browser-tab favicon (shield SVG) and padded square PNG icon (`assets/shield-favicon.png`) for iOS home-screen and Apple Wallet branding
 - Four cinematic vault package selectors with explicit reference weights, keyboard support and reduced-motion support; visual-only, no ordering
 - The root HTML remains a visual homepage; the optional private Node server has **draft-only** product and inventory tooling. No payments, orders, checkout, shipping, or commercial claims exist
 
 ## Important: logo source-of-truth
 
-The current official logo is the **emerald and gold shield/vault-door crest** selected by the owner. `assets/shield-logo.webp` is an optimized, faithful raster rendition of the uploaded artwork; `assets/shield-favicon.png` is a small rendition of that same crest. This replaces the older circular locker mark and simplified vector recreation. The uploaded image is not an editable vector master; do not claim an exact SVG reconstruction.
+The current official logo is the **emerald and gold shield/vault-door crest** selected by the owner. `assets/shield-logo.webp` is the unchanged, opaque raster source; `assets/shield-logo-transparent.svg` embeds that original raster and masks only the outside matte to make the decorative crest transparent. The browser favicon uses the transparent shield. `assets/shield-favicon.png` remains a deliberately square image for iOS touch and Apple Wallet icon compatibility. This replaces the older circular locker mark and simplified vector recreation. The uploaded image is not an editable vector master; do not claim an exact SVG reconstruction.
 
 The **Locker Files** package selector offers The Key (1/8 oz), The Signal (1/4 oz), The Cipher (1/2 oz), and The Vault (1 oz), all as visual preview concepts. Its gold rotating vault animation is decorative, follows `prefers-reduced-motion`, and performs no network requests, checkout, stock reservation or sales action. The Archive (4 oz) remains administrator-only.
 

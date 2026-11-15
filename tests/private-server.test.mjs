@@ -110,6 +110,8 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.equal(response.headers.get("cache-control"),"no-store, private");
  const cardSvg=await response.text();
  assert.match(cardSvg,/data:image\/webp;base64,/);
+ assert.match(cardSvg,/id="card-shield-cutout"/);
+ assert.match(cardSvg,/mask="url\(#card-shield-cutout\)"/);
  assert.match(cardSvg,new RegExp(membershipCode));
  assert.doesNotMatch(cardSvg,/member@example.com|tgl_session|password_hash/i,
    "Download contains no sign-in credentials or member email.");

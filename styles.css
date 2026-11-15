@@ -115,4 +115,33 @@ footer{padding:38px 0 29px;background:#030b07}
 @media(max-width:1080px){.container{width:calc(100% - 50px)}nav{gap:17px}.hero-grid{min-height:660px}.hero h1{font-size:clamp(47px,5.6vw,67px)}.hero-art{height:600px}.collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-card{height:360px}}
 @media(max-width:900px){.container{width:calc(100% - 38px)}.ribbon{font-size:8px;letter-spacing:.09em}.nav-wrap{min-height:77px}.brand{font-size:14px}.brand img{width:52px;height:52px}.nav-toggle{display:flex;flex-direction:column;gap:5px;border:1px solid #9d824d;background:transparent;padding:11px;cursor:pointer}.nav-toggle span{width:22px;height:2px;background:var(--gold)}nav{display:none;position:absolute;top:77px;left:0;right:0;background:#06170e;border-bottom:1px solid var(--line);padding:22px;flex-direction:column;align-items:stretch;gap:23px}nav.open{display:flex}.hero-grid{display:flex;flex-direction:column-reverse;min-height:auto}.hero-art{height:auto;padding:27px 0 0;width:100%}.hero-logo{width:min(82vw,400px)}.orbit{max-width:400px}.orbit-two{max-width:440px}.art-caption{display:none}.hero-content{padding:10px 0 55px;align-self:stretch}.eyebrow{font-size:9px;letter-spacing:.16em;margin-bottom:15px}.hero h1{font-size:clamp(39px,11vw,65px);white-space:normal}.hero p{font-size:14px}.button{font-size:9px;padding:14px 16px;gap:11px}.hero-footnote{margin-top:42px;font-size:9px}.hero-bottom{font-size:8px;gap:12px}.benefits-grid{grid-template-columns:1fr}.benefit{padding:24px 0!important;border-right:0;border-bottom:1px solid var(--line)}.section{padding:72px 0}.section-heading{display:block;margin-bottom:32px}.section-heading h2{font-size:40px;margin-bottom:17px}.section-heading>p{max-width:none}.collection-grid{gap:10px}.collection-card{height:305px;padding:15px}.card-bottom h3{font-size:19px}.card-kicker{font-size:8px}.graphic{transform:translate(-50%,-50%) scale(.76)}.circle-arrow{height:29px;width:29px}.statement{padding:85px 0}.statement h2{font-size:clamp(39px,9.5vw,63px)}.statement p{font-size:13px}.closing{padding:70px 0}.closing-grid{display:flex;flex-direction:column-reverse}.closing img{max-width:300px}.closing h2{font-size:clamp(42px,10vw,63px)}.footer-top,.footer-bottom{flex-direction:column;align-items:flex-start;gap:15px}.footer-brand{font-size:20px}}
 @media(max-width:390px){.collection-grid{grid-template-columns:1fr}.collection-card{height:275px}.hero h1{font-size:40px}.brand{font-size:12px}}
+/* Compact editorial rhythm for phones: transparent shield sits in the hero,
+   rather than a dominant square above the headline. Keep desktop unchanged. */
+@media(max-width:600px){
+  .container{width:calc(100% - 32px)}
+  .ribbon{padding:9px 8px;line-height:1.45;letter-spacing:.1em}
+  .site-header .nav-wrap{min-height:72px;gap:12px}
+  .site-header .brand{gap:10px;font-size:clamp(12px,3.3vw,14px);letter-spacing:.09em}
+  .site-header .brand img{width:48px;height:48px;flex:none}
+  .site-header .brand strong{letter-spacing:.15em}
+  .site-header .nav-toggle{width:48px;height:48px;align-items:center;justify-content:center;padding:10px;flex:none}
+  .site-header nav{top:100%}
+  .hero-art{padding:14px 0 0}
+  .hero-logo{width:min(74vw,350px);max-width:none;filter:drop-shadow(0 20px 32px #0008)}
+  .orbit{width:min(80vw,390px);max-width:none}
+  .orbit-two{width:min(86vw,420px);max-width:none}
+  .hero-content{padding:0 0 42px}
+  .hero .eyebrow{gap:10px;font-size:9px;letter-spacing:.12em;margin:8px 0 17px}
+  .hero .eyebrow-line{width:27px;flex:none}
+  .hero h1{font-size:clamp(35px,9.5vw,53px);line-height:1.06;letter-spacing:-.05em;margin-bottom:19px}
+  .hero p{font-size:14px;line-height:1.7;margin-bottom:22px}
+  .hero-actions{gap:9px}
+  .hero-actions .button{min-height:48px;padding:13px 14px;letter-spacing:.09em}
+  .hero-footnote{margin-top:26px;font-size:9px;letter-spacing:.1em;gap:8px}
+  .hero-bottom{padding-bottom:18px;font-size:8px;letter-spacing:.08em;gap:8px}
+}
+@media(max-width:390px){
+  .hero h1{font-size:clamp(34px,9.6vw,38px)}
+  .hero-actions .button{padding-inline:12px}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}

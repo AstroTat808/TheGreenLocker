@@ -65,7 +65,7 @@ export function renderCollectionConcepts(assortment=null){
   const state=index<3?"Initial lineup concept":"Optional expansion slot";
   return '<article class="collection-concept-card collection-concept-botanical" aria-label="'+html(item.title)+'">'+
     '<div class="collection-concept-art">'+conceptImage(item,"botanicals")+
-      '<img src="/assets/shield-logo.webp" class="collection-art-crest" alt="" aria-hidden="true" loading="lazy">'+
+      '<img src="/assets/shield-logo-transparent.svg" class="collection-art-crest" alt="" aria-hidden="true" loading="lazy">'+
       '<span class="collection-art-number">'+String(index).padStart(2,"0")+'</span></div>'+
     '<div class="collection-concept-details"><span class="collection-concept-status">'+state+'</span>'+
       '<h3>'+html(item.title)+'</h3><p>'+html(item.description||item.note||"Details pending.")+'</p></div></article>';
@@ -80,7 +80,7 @@ export function renderCollectionConcepts(assortment=null){
  const treatCards=treats.map(item=>
   '<article class="collection-concept-card collection-concept-treat">'+
    '<div class="collection-concept-art">'+conceptImage(item,"treats")+
-     '<img src="/assets/shield-logo.webp" class="collection-art-crest" alt="" aria-hidden="true" loading="lazy">'+
+     '<img src="/assets/shield-logo-transparent.svg" class="collection-art-crest" alt="" aria-hidden="true" loading="lazy">'+
      '<span class="collection-art-number">'+String(item.slot_order).padStart(2,"0")+'</span></div>'+
    '<div class="collection-concept-details"><span class="collection-concept-status">Recipe concept</span>'+
      '<h3>'+html(item.title)+'</h3><p>'+html(item.description||item.note||"Recipe description pending.")+'</p></div></article>'
@@ -109,7 +109,7 @@ export function renderCollectionConcepts(assortment=null){
     '<div class="collection-vape-feature">'+
      '<div class="collection-vape-hero">'+
        '<img src="/assets/collection-vape.svg" class="collection-vape-artwork" alt="Original black, emerald and gold vape packaging study" loading="lazy">'+
-       '<img src="/assets/shield-logo.webp" class="collection-vape-crest" alt="" aria-hidden="true" loading="lazy"></div>'+
+       '<img src="/assets/shield-logo-transparent.svg" class="collection-vape-crest" alt="" aria-hidden="true" loading="lazy"></div>'+
      '<div class="collection-vape-content"><span class="collection-concept-status">Brand concept · Private preview</span>'+
        '<h3>'+html(brand)+'</h3><p>Editable flavor identities for visual planning only. No formula, stock, sales or purchase claims.</p>'+
        '<ol class="collection-flavor-grid">'+(flavors||empty("vape flavors"))+'</ol></div></div></section>'+

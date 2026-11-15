@@ -24,7 +24,8 @@ test("navigation, visual media, and layout fit viewport", async ({ page }) => {
   await page.goto("/?preview=1");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator("img.hero-logo")).toHaveAttribute("src","assets/shield-logo-transparent.svg");
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href","assets/shield-favicon.png");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href","assets/shield-logo-transparent.svg");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href","assets/shield-favicon.png");
   const toggle = page.locator("#navToggle");
   if (await toggle.isVisible()) {
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -84,4 +85,32 @@ test("transparent official crest loads without a rectangular background", async 
     };
   });
   expect(result).toEqual({masked:true,imageInsideMask:true,logoLoaded:true});
+});
+
+test("mobile brand header and hero preserve compact proportions without clipping", async ({ page }) => {
+  await page.goto("/?preview=1");
+  for (const width of [320, 375, 390, 430]) {
+    await page.setViewportSize({width,height:812});
+    const m = await page.evaluate(() => {
+      const logo = document.querySelector(".hero-logo").getBoundingClientRect();
+      const brand = document.querySelector(".brand img").getBoundingClientRect();
+      const eyebrow = document.querySelector(".hero .eyebrow").getBoundingClientRect();
+      const head = document.querySelector(".hero h1");
+      return {
+        viewport:document.documentElement.clientWidth,
+        document:document.documentElement.scrollWidth,
+        logoWidth:logo.width,
+        brandWidth:brand.width,
+        visualGap:eyebrow.top-logo.bottom,
+        titleWidth:head.scrollWidth,
+        titleBox:head.clientWidth
+      };
+    });
+    expect(m.document,"Horizontal overflow at "+width).toBeLessThanOrEqual(m.viewport+1);
+    expect(m.logoWidth,"Hero logo is too dominant at "+width).toBeLessThanOrEqual(m.viewport*.77);
+    expect(m.brandWidth,"Unexpected brand logo size at "+width).toBeGreaterThanOrEqual(46);
+    expect(m.brandWidth).toBeLessThanOrEqual(49);
+    expect(m.visualGap,"Oversized space between crest and headline at "+width).toBeLessThanOrEqual(34);
+    expect(m.titleWidth,"Headline clipped at "+width).toBeLessThanOrEqual(m.titleBox+1);
+  }
 });

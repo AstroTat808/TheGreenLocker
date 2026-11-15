@@ -29,6 +29,16 @@ assert.match(transparentShield, /<mask id="shield-cutout"/);
 assert.match(transparentShield, /href="data:image\/webp;base64,/);
 assert.match(html,/assets\/shield-logo-transparent\.svg/);
 assert.doesNotMatch(html, /<img[^>]+shield-logo\.webp/i);
+assert.match(html, /rel="icon" type="image\/svg\+xml" href="assets\/shield-logo-transparent\.svg"/);
+assert.match(html, /rel="apple-touch-icon" href="assets\/shield-favicon\.png"/);
+assert.match(css,/\.hero-logo\{width:min\(74vw,350px\)/);
+const collections=read("private/catalog-collections.mjs");
+assert.equal((collections.match(/\/assets\/shield-logo-transparent\.svg/g)||[]).length,3,
+  "All collection crests must use the transparent approved shield");
+assert.doesNotMatch(collections,/\/assets\/shield-logo\.webp/);
+const memberCard=read("private/member-card.mjs");
+assert.match(memberCard,/id="card-shield-cutout"/);
+assert.match(memberCard,/mask="url\(#card-shield-cutout\)"/);
 assert.match(html,/assets\/shield-favicon\.png/);
 assert.doesNotMatch(html,/approved-logo\.png|assets\/logo\.svg|circular golden seal/i);
 
