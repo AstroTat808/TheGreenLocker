@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { brotliDecompressSync } from "node:zlib";
 import { createShieldDelivery } from "../private/logo-delivery.mjs";
+import { officialLogoIntegrity } from "../scripts/logo-integrity.mjs";
 
 const original=fs.readFileSync(new URL("../assets/shield-logo-transparent.svg",import.meta.url));
 const delivery=createShieldDelivery(original);
@@ -13,6 +14,10 @@ function call(headers={},privateAsset=false){
   }});
   return result;
 }
+test("approved crest SVG and source WebP have not changed",()=>{
+  const actual=officialLogoIntegrity();
+  assert.equal(actual.pass,true,JSON.stringify(actual.results));
+});
 test("Brotli shield is byte-for-byte identical to the official transparent SVG",()=>{
   const reply=call({"accept-encoding":"gzip, br"});
   assert.equal(reply.status,200);
