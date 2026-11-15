@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PERFORMANCE_BUDGETS } from "../scripts/performance-budgets.mjs";
 import { createShieldDelivery } from "./logo-delivery.mjs";
+import { officialLogoIntegrity } from "../scripts/logo-integrity.mjs";
 
 const root=path.resolve(fileURLToPath(new URL("../",import.meta.url)));
 const requiredNames=["check","browser","protected-ui","auth-catalog-inventory","gated-preview"];
@@ -38,7 +39,7 @@ export function localQualitySnapshot({env=process.env,workingDir=root,uptimeSeco
     budgets:{passed:assets.filter(item=>item.pass).length,total:assets.length},
     logo:{originalBytes:delivery.originalBytes,brotliBytes:delivery.compressedBytes,
       savedPercent:Math.max(0,Math.round(100*(1-delivery.compressedBytes/delivery.originalBytes))),
-      sameArtwork:true,etag:delivery.etag},
+      sameArtwork:officialLogoIntegrity(workingDir).pass,etag:delivery.etag},
     runtime:{state:"serving",uptimeSeconds:Math.floor(uptimeSeconds),
       source:"This application process responded to the request",
       providerReplicaStatus:"Not reported by this application"}
@@ -85,7 +86,7 @@ export async function releaseQualitySnapshot({env=process.env,workingDir=root,up
   fetchImpl=globalThis.fetch,allowNetwork=true}={}){
   const snapshot=localQualitySnapshot({env,workingDir,uptimeSeconds});
   snapshot.ci=await fetchGitHubChecks(snapshot.commit,{token:env.TGL_QUALITY_GITHUB_TOKEN,fetchImpl,allowNetwork});
-  snapshot.overall=!snapshot.visual.ready||snapshot.budgets.passed!==snapshot.budgets.total?"failed":
+  snapshot.overall=!snapshot.visual.ready||snapshot.budgets.passed!==snapshot.budgets.total||!snapshot.logo.sameArtwork?"failed":
     snapshot.ci.state==="passed"?"verified":
     snapshot.ci.state==="failed"?"failed":"unverified";
   return snapshot;
@@ -130,7 +131,7 @@ export function renderReleaseQualityDashboard(snapshot,{layout,user,csrf}){
    '<div><dt>Provider replica telemetry</dt><dd>Not connected; serving health is confirmed only for this app process</dd></div>'+
    '<div><dt>Last refreshed</dt><dd>'+safeText(snapshot.generatedAt)+'</dd></div></dl></section>';
  const logo='<section class="private-panel quality-panel"><h2>Shield delivery</h2>'+
-   '<p>The official shield and transparent alpha mask are unchanged. Brotli compresses the SVG transfer losslessly; the cache uses ETag revalidation.</p>'+
+   '<p>The official shield and transparent alpha mask are byte-verified against approved artwork fingerprints. Brotli compresses the SVG transfer losslessly; the cache uses ETag revalidation.</p>'+
    '<div class="quality-logo-savings"><strong>'+snapshot.logo.savedPercent+'%</strong><span>Estimated transfer-size reduction versus uncompressed SVG</span></div>'+
    '<dl class="quality-details"><div><dt>Original source</dt><dd>'+bytes(snapshot.logo.originalBytes)+'</dd></div>'+
    '<div><dt>Brotli response</dt><dd>'+bytes(snapshot.logo.brotliBytes)+'</dd></div></dl></section>';
