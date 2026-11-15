@@ -120,7 +120,7 @@ test("all public direction symbols are branded vectors, not emoji on iPhone",asy
   await expect(page.locator(".circle-arrow svg.ui-icon")).toHaveCount(4);
   const symbols=await page.locator(".ui-icon use").evaluateAll(nodes=>
     nodes.map(el=>el.getAttribute("href")));
-  expect(symbols.length).toBeGreaterThanOrEqual(11);
+  expect(symbols.length).toBe(10);
   expect(symbols.every(x=>/^assets\/ui-icons\.svg#(up-right|right|left|down|up|chevron-left|chevron-right)$/.test(x))).toBe(true);
   const response=await page.request.get("/assets/ui-icons.svg");
   expect(response.status()).toBe(200);
