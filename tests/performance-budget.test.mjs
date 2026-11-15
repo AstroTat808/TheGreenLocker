@@ -4,18 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root=new URL("../",import.meta.url);
-const budgets={
-  "index.html":11000,
-  "styles.css":19000,
-  "app.js":3000,
-  "assets/shield-logo-transparent.svg":136000,
-  "assets/ui-icons.svg":3000,
-  "private/private.css":112000,
-  "private/locker-motion.js":3500,
-  "private/vault-entry.js":14000
-};
+import { PERFORMANCE_BUDGETS } from "../scripts/performance-budgets.mjs";
 test("critical UI assets stay within tightly bounded size budgets",()=>{
-  for(const [file,maxBytes]of Object.entries(budgets)){
+  for(const [file,maxBytes]of Object.entries(PERFORMANCE_BUDGETS)){
     const current=fs.statSync(new URL(file,root)).size;
     assert.ok(current<=maxBytes,file+" grew to "+current+" bytes (budget "+maxBytes+")");
   }
