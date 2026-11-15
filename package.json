@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Development-only brand concept; no orders or checkout.",
   "scripts": {
-    "check": "node --check app.js && node scripts/check-static-site.mjs && npm run check:backend && npm run check:budget",
+    "check": "node --check app.js && node scripts/check-static-site.mjs && npm run check:backend && npm run check:budget && node scripts/check-release-contract.mjs",
     "start:private": "node private/server.mjs",
     "admin:promote": "node private/admin-cli.mjs",
     "test:private": "node --test tests/ui-icons.test.mjs tests/private-server.test.mjs tests/security-inventory.test.mjs tests/locker-files.test.mjs tests/wallet-pass.test.mjs tests/wallet-updates.test.mjs tests/wallet-monitor.test.mjs tests/catalog-collections.test.mjs tests/assortment-editor.test.mjs tests/assortment-media.test.mjs tests/gallery-backup.test.mjs tests/offsite-backup.test.mjs tests/backup-operations.test.mjs tests/dr-restore-contract.test.mjs",
@@ -15,7 +15,8 @@
     "test:staging": "node --test tests/staging-preflight.test.mjs",
     "preview:workshop": "node scripts/workshop-preview.mjs",
     "test:workshop": "node --test tests/workshop-preview.test.mjs",
-    "check:budget": "node --test tests/performance-budget.test.mjs"
+    "check:budget": "node --test tests/performance-budget.test.mjs",
+    "check:release": "node scripts/check-release-contract.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
