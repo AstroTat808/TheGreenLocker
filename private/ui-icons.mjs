@@ -5,6 +5,6 @@ export function brandIcon(name, extraClass = "") {
   if (typeof extraClass !== "string" || !/^[a-zA-Z0-9 -]*$/.test(extraClass))
     throw new TypeError("Unsafe Green Locker icon class");
   return '<svg class="ui-icon' + (extraClass ? ' ' + extraClass : '') +
-    '" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    '" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
     '<use href="/assets/ui-icons.svg#' + name + '"></use></svg>';
 }
