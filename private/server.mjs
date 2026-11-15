@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
+import { createShieldDelivery } from "./logo-delivery.mjs";
 import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
 import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
 import { walletConfigured, signedWalletPass, PASS_MIME } from "./wallet-pass.mjs";
@@ -25,6 +26,7 @@ import { createAssortmentEditor } from "./assortment-editor.mjs";
 import {backupOperationsSnapshot,renderBackupOperationsPage,saveBackupPolicy} from "./backup-operations.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const shieldDelivery = createShieldDelivery(fs.readFileSync(path.join(root,"assets/shield-logo-transparent.svg")));
 const MS8H = 8 * 60 * 60 * 1000;
 const CATEGORIES = ["Botanicals", "Formulations", "Accessories", "Lifestyle"];
 const LIMITS = new Map();
@@ -153,7 +155,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    // PassKit callbacks do not carry browser cookies. Validate the ApplePass
    // per-pass HMAC before any session-based routing.
    if (await walletService.handle({req,res,url,method})) return;
-   if (method === "GET" && pathname === "/logo") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo-transparent.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox"});
+   if (method === "GET" && pathname === "/logo") return shieldDelivery.send({req,res,respond});
    if (method === "GET" && pathname === "/favicon.ico") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
@@ -299,7 +301,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    }
    if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/gallery-preview.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/gallery-preview") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/ui-icons.svg") return respond(res,200,fs.readFileSync(path.join(root,"assets/ui-icons.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox","Cache-Control":"public, max-age=3600"});
-    if (method === "GET" && pathname === "/assets/shield-logo-transparent.svg") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo-transparent.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; img-src data:; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox"});
+    if (method === "GET" && pathname === "/assets/shield-logo-transparent.svg") return shieldDelivery.send({req,res,respond,privateAsset:true});
     if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
    if (method === "GET" && pathname === "/assets/shield-favicon.png") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-favicon.png")),"image/png");
    if (method==="GET" && ["/assets/collection-botanical.svg","/assets/collection-vape.svg","/assets/collection-treat.svg"].includes(pathname))
