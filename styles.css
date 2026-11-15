@@ -157,3 +157,15 @@ footer{padding:38px 0 29px;background:#030b07}
 .collection-card:hover .circle-arrow,.collection-card:focus-visible .circle-arrow{background:#1c4430;border-color:#f6dda3}
 .hero-bottom .ui-icon{width:12px;height:12px;vertical-align:-.17em;margin-left:3px;color:var(--gold)}
 @media(max-width:600px){.circle-arrow .ui-icon{width:16px;height:16px}.action-icon{margin-left:5px}}
+
+/* Phone rendering budget: shadows and continuous hover effects should not
+   dominate compositing on touch-only devices. */
+@media(max-width:700px) and (pointer:coarse){
+  .hero-logo{filter:drop-shadow(0 12px 19px #0008)}
+  .orbit-two{opacity:.35}
+  .collection-card,.circle-arrow,.button{transition:border-color .16s ease,background-color .16s ease}
+  .graphic-leaf{filter:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-logo,.orbit,.circle-arrow,.graphic{animation:none!important}
+}

@@ -1578,3 +1578,138 @@ body{
 .concept-gallery-tools button .ui-icon{width:15px;height:15px}
 .collection-flavor-gallery .concept-gallery-tools button .ui-icon{width:12px;height:12px}
 @media(prefers-reduced-motion:reduce){.ui-icon,.circle-arrow{transition:none!important;animation:none!important}}
+
+/* Mobile design system v2 – presentation-only refinements.
+   Preserve every existing form, API action, flip mechanism, and gate. */
+@media(max-width:700px){
+  .private-main{width:calc(100% - 30px);margin:26px auto 70px}
+  .private-title{margin-bottom:23px}
+  .private-title h1,.auth-panel h1{line-height:1.08;letter-spacing:-.037em}
+  .collection-hero{padding-bottom:11px}
+  .collection-hero h1{font-size:clamp(36px,9vw,55px);line-height:1.05}
+  .collection-hero p{font-size:14px;line-height:1.65}
+  .collection-hero-meta{margin:14px 0 18px}
+  .collection-preview{gap:27px}
+  .collection-preview-nav{gap:9px}
+  .collection-preview-nav a{min-height:56px;padding:11px 13px;border-radius:10px;box-shadow:none}
+  .collection-preview-nav a>span{font-size:23px}
+  .collection-preview-nav small{font-size:10px}
+  .collection-preview-heading{gap:10px;margin-bottom:17px;padding-bottom:13px}
+  .collection-preview-heading h2{font-size:clamp(29px,8vw,42px);line-height:1.12;margin:7px 0}
+  .collection-preview-heading p{font-size:13px;line-height:1.65}
+  .collection-count{padding:7px 10px;letter-spacing:.06em}
+  .collection-concept-card,.catalog-card{box-shadow:0 10px 24px #0005;border-radius:12px}
+  .collection-concept-details{padding:16px;gap:9px}
+  .collection-concept-details p{min-height:0;font-size:12px;line-height:1.65}
+  .collection-vape-hero{min-height:185px}
+  .collection-vape-content{padding:17px}
+  .collection-vape-content h3{font-size:clamp(26px,7.5vw,34px)}
+  .collection-flavor{min-height:75px}
+  .collection-archive{margin-top:35px}
+  .catalog-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+  .member-dashboard{gap:22px}
+  .member-hero{min-height:0;padding:24px 20px;gap:0;border-radius:15px;box-shadow:0 17px 34px #0007}
+  .member-hero h1{font-size:clamp(37px,9.6vw,52px);margin:9px 0 16px}
+  .member-hero-copy>.eyebrow{margin-top:16px}
+  .member-hero-copy>p{line-height:1.65}
+  .member-actions{margin-top:20px}
+  .member-art{height:225px;filter:none}
+  .member-overview{gap:9px}
+  .member-stat{padding:15px 18px;box-shadow:none}
+  .member-stat strong{margin:6px 0 3px}
+  .member-section-head{margin-bottom:15px}
+  .member-section-head h2{font-size:clamp(28px,8vw,35px)}
+  .member-compartments{gap:12px}
+  .member-compartment,.compartment-content{min-height:178px}
+  .member-compartment{box-shadow:0 12px 23px #0005;border-radius:13px}
+  .compartment-content{padding:20px}
+  .compartment-content>small{margin:6px 0 10px}
+  .compartment-emblem{width:44px;height:44px;margin:9px 0;font-size:23px}
+  .member-card-layout{gap:13px}
+  .member-card-experience{gap:9px}
+  .member-credential-scene{min-height:320px;box-shadow:0 17px 34px #0007}
+  .member-card-flip-button{min-height:48px}
+  .member-card-aside{padding:0}
+  .member-card-aside h3{margin:5px 0 12px;font-size:clamp(27px,7vw,34px)}
+  .member-card-aside p{line-height:1.65}
+  .member-card-actions{grid-template-columns:minmax(0,1fr);gap:8px}
+  .member-card-preferences{margin-top:16px;padding:16px}
+  .member-settings-grid{gap:12px}
+  .member-settings-card{padding:20px;box-shadow:none}
+  .private-panel{padding:19px;border-radius:12px}
+  .private-panel h2{font-size:clamp(22px,6.4vw,29px)}
+  .forms-grid{gap:12px}
+  .stats{gap:10px}
+  .stats article{min-width:0;padding:16px;border-radius:12px}
+  .stats article strong{font-size:clamp(28px,9vw,38px)}
+  .wallet-monitor-nav{gap:8px}
+  .wallet-monitor-nav-link,.wallet-monitor-return{min-height:44px}
+  .wallet-monitor-metric{box-shadow:none}
+  .assortment-editor-nav{gap:8px}
+  .assortment-editor-nav a{min-height:57px;padding:13px}
+  .assortment-editor-card{box-shadow:none}
+  .scroll-table{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+}
+@media(max-width:430px){
+  .private-main{width:calc(100% - 28px)}
+  .collection-botanical-grid{grid-template-columns:minmax(0,1fr);gap:13px}
+  .collection-concept-botanical .collection-concept-art{aspect-ratio:1.34}
+  .collection-concept-details h3{font-size:clamp(22px,6.5vw,27px)}
+  .collection-flavor-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .collection-flavor{padding:11px;gap:5px}
+  .collection-flavor>strong{font-size:12px}
+  .collection-flavor>small{font-size:10px}
+  .member-art{height:205px}
+  .member-art-orbit-outer{width:205px}
+  .member-art-orbit-mid{width:173px}
+  .member-art-orbit-inner{width:143px}
+  .member-art-core{width:122px}
+  .member-credential-top{gap:9px}
+  .member-credential-top strong{font-size:clamp(15px,4.25vw,18px)}
+  .member-credential-top img{width:44px;height:44px}
+  .member-card-preferences{padding:13px}
+  .member-settings-card{padding:17px}
+  .wallet-monitor-summary,.wallet-monitor-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stats{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:355px){
+  .collection-flavor-grid{grid-template-columns:minmax(0,1fr)}
+  .member-credential-scene{min-height:322px}
+  .member-card-face{padding:15px}
+  .member-credential-details>code{font-size:10px;letter-spacing:0}
+  .member-credential-details>strong:not(.member-edition){font-size:22px}
+  .wallet-monitor-summary,.wallet-monitor-metrics{grid-template-columns:minmax(0,1fr)}
+}
+/* The animated vault remains available; mobile avoids perpetual filter-heavy motion. */
+@media(max-width:700px) and (prefers-reduced-motion:no-preference){
+  .member-art-orbit-outer{animation-duration:75s}
+  .member-art-orbit-mid{animation-duration:65s}
+  .locker-entry-portal.is-opening .locker-entry-door,.member-credential-scene.is-flipped .member-card-rotor{will-change:transform}
+}
+@media(max-width:700px) and (prefers-reduced-motion:reduce){
+  .member-art-orbit,.locker-entry-portal,.locker-tier-face,.member-card-rotor{animation:none!important}
+}
+
+/* Compact flavor galleries expose real 44px next/previous targets instead of
+   tiny controls embedded in 50px thumbnails on touch screens. */
+@media(max-width:430px){
+  .collection-flavor:has(.collection-flavor-gallery){
+    display:grid;grid-template-columns:22px minmax(0,1fr);gap:7px 5px;
+  }
+  .collection-flavor:has(.collection-flavor-gallery)>span{grid-column:1;grid-row:1}
+  .collection-flavor:has(.collection-flavor-gallery)>strong{grid-column:2;grid-row:1;align-self:center}
+  .collection-flavor:has(.collection-flavor-gallery)>small{grid-column:1/-1;grid-row:3}
+  .collection-flavor:has(.collection-flavor-gallery) .collection-flavor-gallery{
+    grid-column:1/-1;grid-row:2;width:100%;height:74px;min-width:0;overflow:hidden;
+  }
+  .collection-flavor-gallery .concept-gallery-tools{
+    display:flex;align-items:center;justify-content:space-between;
+    left:0;right:0;bottom:0;transform:none;gap:2px;padding:2px;
+  }
+  .collection-flavor-gallery .concept-gallery-tools button{
+    width:44px;height:44px;min-width:44px;min-height:44px;
+  }
+  .collection-flavor-gallery .concept-gallery-tools span{
+    flex:1;min-width:0;text-align:center;font-size:8px;
+  }
+}

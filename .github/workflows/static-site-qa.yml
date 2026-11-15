@@ -2,7 +2,7 @@ name: Static site QA
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, staging-preview]
 
 permissions:
   contents: read
@@ -19,4 +19,6 @@ jobs:
       - name: JavaScript syntax
         run: node --check app.js
       - name: Static file and link integrity
-        run: node scripts/check-static-site.mjs
+        run: |
+          node scripts/check-static-site.mjs
+          node scripts/check-release-contract.mjs
