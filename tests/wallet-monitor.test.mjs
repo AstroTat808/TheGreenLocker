@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { openDb } from "../private/server.mjs";
 import {
-  inspectWalletCertificates,walletOperationsSnapshot,renderWalletOperationsPage,
+  inspectWalletCertificates,walletIssuanceReady,walletOperationsSnapshot,renderWalletOperationsPage,
   emailAlertsConfigured,dispatchWalletCertificateAlerts,installWalletMonitorSchema
 } from "../private/wallet-monitor.mjs";
 
@@ -108,6 +108,8 @@ test("certificate expiry grades are determined from actual X.509 notAfter, never
  assert.ok(Number.isFinite(expiration));
  assert.equal(first.signingConfigured,true);
  assert.equal(first.keyCheck,"valid");
+ assert.equal(walletIssuanceReady(env),false,"A self-signed test certificate must never be offered as an Apple Wallet installable pass.");
+ assert.equal(walletIssuanceReady({}),false);
  assert.ok(first.certificates.every(c=>c.state==="healthy"));
  for(const [days,state] of [[40,"healthy"],[25,"warning"],[14,"warning"],[7,"critical"],[2,"critical"],[-1,"expired"]]){
    const checked=inspectWalletCertificates(env,{at:expiration-days*86400000});
