@@ -1,3 +1,4 @@
+import { brandIcon } from "./ui-icons.mjs";
 /**
  * Member-facing presentation for the isolated development preview.
  * All interpolated account fields are HTML-escaped. No commerce functions.
@@ -115,25 +116,25 @@ export function renderMemberPage({user, productCount, layout, csrfField, memberC
             '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
             '<span class="compartment-content"><span class="compartment-index">CHAMBER 01 · THE ARCHIVE</span>' +
             '<span class="compartment-emblem" aria-hidden="true">✦</span><strong>The Locker Files</strong>' +
-            '<small>Explore private concept records</small><span class="compartment-action">OPEN ARCHIVE ↗</span></span></a>' +
+            '<small>Explore private concept records</small><span class="compartment-action">OPEN ARCHIVE ' + brandIcon("up-right") + '</span></span></a>' +
           '<a href="#member-card" class="member-compartment" data-vault-compartment>' +
             '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
             '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
             '<span class="compartment-content"><span class="compartment-index">CHAMBER 02 · YOUR CREDENTIAL</span>' +
             '<span class="compartment-emblem" aria-hidden="true">◇</span><strong>Member card</strong>' +
-            '<small>Your personal digital credential</small><span class="compartment-action">VIEW CARD ↓</span></span></a>' +
+            '<small>Your personal digital credential</small><span class="compartment-action">VIEW CARD ' + brandIcon("down") + '</span></span></a>' +
           '<a href="#member-settings" class="member-compartment" data-vault-compartment>' +
             '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
             '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
             '<span class="compartment-content"><span class="compartment-index">CHAMBER 03 · THE CONTROL ROOM</span>' +
             '<span class="compartment-emblem" aria-hidden="true">⚙</span><strong>Vault settings</strong>' +
-            '<small>Personalize your name and atmosphere</small><span class="compartment-action">ADJUST SETTINGS ↓</span></span></a>' +
+            '<small>Personalize your name and atmosphere</small><span class="compartment-action">ADJUST SETTINGS ' + brandIcon("down") + '</span></span></a>' +
           '<a href="/" class="member-compartment" data-vault-compartment>' +
             '<span class="compartment-panel compartment-panel-left" aria-hidden="true"></span>' +
             '<span class="compartment-panel compartment-panel-right" aria-hidden="true"></span>' +
             '<span class="compartment-content"><span class="compartment-index">CHAMBER 04 · THE WORLD</span>' +
             '<span class="compartment-emblem" aria-hidden="true">✧</span><strong>Brand home</strong>' +
-            '<small>Discover The Green Locker identity</small><span class="compartment-action">EXPLORE ↗</span></span></a>' +
+            '<small>Discover The Green Locker identity</small><span class="compartment-action">EXPLORE ' + brandIcon("up-right") + '</span></span></a>' +
         '</div>' +
       '</section>' +
       '<section id="member-card" class="member-section member-identity-section" aria-labelledby="member-card-title" tabindex="-1">' +

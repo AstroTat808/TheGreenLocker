@@ -39,12 +39,22 @@ assert.doesNotMatch(collections,/\/assets\/shield-logo\.webp/);
 const memberCard=read("private/member-card.mjs");
 assert.match(memberCard,/id="card-shield-cutout"/);
 assert.match(memberCard,/mask="url\(#card-shield-cutout\)"/);
+const arrowSprite=read("assets/ui-icons.svg");
+for(const name of ["up-right","right","left","up","down","chevron-left","chevron-right"])
+  assert.match(arrowSprite, new RegExp('id="'+name+'"'),"Missing icon "+name);
+assert.equal((html.match(/class="circle-arrow"/g)||[]).length,4);
+assert.equal((html.match(/assets\/ui-icons\.svg#up-right/g)||[]).length,7);
+for(const filename of ["index.html","private/member.mjs","private/server.mjs","private/catalog-collections.mjs"]){
+  assert.doesNotMatch(read(filename),/[↗↘↖↙⇗⇘→←↑↓‹›]/u,
+    "Platform-dependent text arrows are forbidden: "+filename);
+}
 assert.match(html,/assets\/shield-favicon\.png/);
 assert.doesNotMatch(html,/approved-logo\.png|assets\/logo\.svg|circular golden seal/i);
 
 const localFiles = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
   .map(([,f]) => f)
-  .filter((f) => !f.startsWith("#") && !/^https?:\/\//.test(f));
+  .filter((f) => !f.startsWith("#") && !/^https?:\/\//.test(f))
+  .map((f) => f.split("#")[0]);
 for (const file of localFiles) {
   assert(!file.includes(".."), "Parent-relative path not allowed: " + file);
   assert(fs.existsSync(path.join(root,file)), "Missing asset: "+file);

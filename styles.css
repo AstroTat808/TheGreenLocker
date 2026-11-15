@@ -145,3 +145,15 @@ footer{padding:38px 0 29px;background:#030b07}
   .hero-actions .button{padding-inline:12px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+/* The Green Locker icon design system: real paths, no platform-dependent arrow emoji. */
+.ui-icon{display:inline-block;width:1.18em;height:1.18em;flex:none;vertical-align:-.16em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;color:inherit;pointer-events:none}
+.action-icon{display:inline-flex;align-items:center;justify-content:center;margin-left:7px;color:inherit}
+.action-icon .ui-icon{width:17px;height:17px}
+.nav-cta{display:inline-flex;align-items:center;justify-content:center}
+.nav-cta .action-icon{padding-left:0}
+.circle-arrow{background:#0e2d1d;color:#e9c78c;transition:background-color .18s,border-color .18s}
+.circle-arrow .ui-icon{width:18px;height:18px}
+.collection-card:hover .circle-arrow,.collection-card:focus-visible .circle-arrow{background:#1c4430;border-color:#f6dda3}
+.hero-bottom .ui-icon{width:12px;height:12px;vertical-align:-.17em;margin-left:3px;color:var(--gold)}
+@media(max-width:600px){.circle-arrow .ui-icon{width:16px;height:16px}.action-icon{margin-left:5px}}

@@ -32,6 +32,7 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  response=await req("/styles.css");assert.equal(response.status,303);
  response=await req("/assets/shield-logo.webp");assert.equal(response.status,303,"Private shield asset requires member login.");
  response=await req("/assets/shield-logo-transparent.svg");assert.equal(response.status,303,"Transparent shield asset requires member login.");
+ response=await req("/assets/ui-icons.svg");assert.equal(response.status,303,"Private icon sprite requires member login.");
  response=await req("/locker-motion.js");assert.equal(response.status,303,"Selector animation requires member login.");
  response=await req("/vault-entry.js");assert.equal(response.status,303,"Vault entrance script requires member login.");
  response=await req("/logo");assert.equal(response.status,200);
@@ -216,6 +217,9 @@ test("server-enforced preview: invited verification, member access, admin MFA, i
  assert.match(await response.text(),/prefers-reduced-motion|reduced.matches/);
  response=await req("/",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(await response.text(),/THE GOOD STUFF/);
+ response=await req("/assets/ui-icons.svg",{headers:{Cookie:cookie}});assert.equal(response.status,200);
+ assert.match(response.headers.get("content-type"),/image\/svg\+xml/);
+ assert.match(await response.text(),/id="up-right"/);
  response=await req("/assets/shield-logo-transparent.svg",{headers:{Cookie:cookie}});assert.equal(response.status,200);
  assert.match(response.headers.get("content-type"),/image\/svg\+xml/);
  assert.match(await response.text(),/<mask id="shield-cutout"/);
