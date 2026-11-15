@@ -384,6 +384,22 @@ test("invited member can register, log in, and view concept-only catalog",async(
      });
    }
  }
+ // Onboarding progress is persisted, distinct from Wallet-signing readiness.
+ await page.goto("/member");
+ await expect(page.locator("#member-onboarding")).toContainText("4 of 5 complete");
+ await page.goto("/member/security");
+ await expect(page.getByRole("heading",{name:"Account Security."})).toBeVisible();
+ await expect(page.getByRole("button",{name:"Sign out other sessions"})).toBeVisible();
+ for(const width of [320,375,430]){
+   await page.setViewportSize({width,height:770});
+   await assertNoOverflow(page);
+   const buttonHeight=await page.getByRole("button",{name:"Sign out other sessions"})
+     .evaluate(el=>el.getBoundingClientRect().height);
+   expect(buttonHeight).toBeGreaterThanOrEqual(44);
+ }
+ await page.goto("/member");
+ await expect(page.locator("#member-onboarding")).toContainText("5 of 5 complete");
+ await expect(page.locator("#member-onboarding")).toContainText("signing certificates are not configured");
  await page.getByRole("button",{name:"Log out"}).click();
  await expect(page).toHaveURL(/\/login$/);
  await page.goto("/catalog");
@@ -458,6 +474,17 @@ test("administrator can manage draft products and stock without sales actions",a
  }
  await page.setViewportSize(originalViewport);
  await page.emulateMedia({reducedMotion:"no-preference"});
+ await page.getByRole("link",{name:"Open member operations"}).click();
+ await expect(page).toHaveURL(/\/admin\/members$/);
+ await expect(page.getByRole("heading",{name:/Member Operations/})).toBeVisible();
+ await expect(page.locator(".member-operations-stat")).toHaveCount(8);
+ const membershipData=await page.request.get("/admin/members.json");
+ expect(membershipData.status()).toBe(200);
+ const membershipMetrics=await membershipData.json();
+ expect(membershipMetrics.totals.accounts).toBeGreaterThanOrEqual(1);
+ expect(membershipMetrics.wallet.signingReady).toBe(false);
+ await assertNoOverflow(page);
+ await page.goto("/admin");
  await page.getByRole("link",{name:"Backups"}).click();
  await expect(page).toHaveURL(/\/admin\/backups$/);
  await expect(page.getByRole("heading",{name:"Encrypted Backup Operations"})).toBeVisible();

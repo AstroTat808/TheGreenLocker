@@ -7,6 +7,7 @@ import { randomBytes, createHash, timingSafeEqual, scryptSync } from "node:crypt
 import { DatabaseSync } from "node:sqlite";
 import { createSecurity } from "./security.mjs";
 import { createShieldDelivery } from "./logo-delivery.mjs";
+import { installMemberJourney, markMemberMilestone, memberJourneySnapshot, memberPlatformSnapshot, renderMemberSecurityPage, renderMemberOperationsPage } from "./member-journey.mjs";
 import { releaseQualitySnapshot, renderReleaseQualityDashboard } from "./release-quality.mjs";
 import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
 import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
@@ -65,7 +66,7 @@ const adminPage = (products, movements, usersCount, user, csrf, notice = "", ext
  const history = movements.map(m=>'<tr><td>' + esc(m.created_at) + '</td><td>' + esc(m.sku) + '</td><td>' + (m.delta > 0 ? "+" : "") + m.delta + '</td><td>' + esc(m.reason) + '</td><td>' + esc(m.actor_email) + '</td></tr>').join("");
  const options = products.map(p=>'<option value="' + p.id + '">' + esc(p.sku) + ' — ' + esc(p.name) + '</option>').join("");
  const codenameForm = '<section class="private-panel"><h2>Locker Files · Codename assignment</h2><p>Assign or revise a private codename without changing the underlying product identity. Codenames are unique across draft products.</p><form action="/admin/products/codename" method="post">' + csrfField(csrf) + '<label>Draft product<select name="product_id" required>' + options + '</select></label><label>Codename<input name="codename" minlength="3" maxlength="56" placeholder="Ghost Key · leave blank to clear"></label><button type="submit" class="private-button">Update codename</button></form></section>';
- return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>' + '<nav class="wallet-monitor-nav" aria-label="Administration sections"><a href="/admin/assortment" class="wallet-monitor-nav-link">Assortment Studio <span class="action-icon" aria-hidden="true">' + brandIcon("up-right") + '</span></a><a href="/admin/quality" class="wallet-monitor-nav-link">Release Quality</a><a href="/admin/wallet" class="wallet-monitor-nav-link">Wallet Operations <span class="action-icon" aria-hidden="true">' + brandIcon("up-right") + '</span></a></nav>' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Locker Files codename (optional)<input name="codename" maxlength="56" placeholder="Ghost Key"></label><label>Category<select name="category">' + categoryOptions + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section>' + codenameForm + '<section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product identity</th><th>Codename</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>' + extras, user, csrf);
+ return layout("Administration", '<section class="private-title"><span class="eyebrow">ADMINISTRATION · DEVELOPMENT ONLY</span><h1>Operations dashboard</h1><p>Draft catalog and internal stock ledger. Sales are disabled by design.</p>' + '<nav class="wallet-monitor-nav" aria-label="Administration sections"><a href="/admin/assortment" class="wallet-monitor-nav-link">Assortment Studio <span class="action-icon" aria-hidden="true">' + brandIcon("up-right") + '</span></a><a href="/admin/quality" class="wallet-monitor-nav-link">Release Quality</a><a href="/admin/wallet" class="wallet-monitor-nav-link">Wallet Operations <span class="action-icon" aria-hidden="true">' + brandIcon("up-right") + '</span></a></nav>' + (notice ? '<p class="form-ok">' + esc(notice) + '</p>' : "") + '</section><section class="member-operations-entry"><div><strong>Private membership</strong><p>Track onboarding, card personalization, active accounts and Wallet readiness.</p></div><a href="/admin/members" class="member-secondary">Open member operations</a></section><section class="stats"><article><strong>' + products.length + '</strong><span>Draft items</span></article><article><strong>' + total + '</strong><span>Recorded units</span></article><article><strong>' + usersCount + '</strong><span>Registered accounts</span></article></section><section class="forms-grid"><article class="private-panel"><h2>Create draft product</h2><form action="/admin/products" method="post">' + csrfField(csrf) + '<label>SKU<input name="sku" pattern="[A-Za-z0-9-]{3,32}" maxlength="32" required></label><label>Name<input name="name" maxlength="120" required></label><label>Locker Files codename (optional)<input name="codename" maxlength="56" placeholder="Ghost Key"></label><label>Category<select name="category">' + categoryOptions + '</select></label><button class="private-button" type="submit">Save draft</button></form></article><article class="private-panel"><h2>Record inventory movement</h2><form action="/admin/stock" method="post">' + csrfField(csrf) + '<label>Draft item<select name="product_id" required>' + options + '</select></label><label>Quantity change<input type="number" name="delta" min="-100000" max="100000" step="1" required></label><label>Reason<input name="reason" maxlength="200" required></label><button class="private-button" type="submit">Record adjustment</button></form></article></section>' + codenameForm + '<section class="private-panel"><h2>Draft catalog ledger</h2><div class="scroll-table"><table><thead><tr><th>SKU</th><th>Product identity</th><th>Codename</th><th>Category</th><th>Units</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">No products yet</td></tr>') + '</tbody></table></div></section><section class="private-panel"><h2>Latest stock movements</h2><div class="scroll-table"><table><thead><tr><th>UTC time</th><th>SKU</th><th>Delta</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>' + (history || '<tr><td colspan="5">No movements yet</td></tr>') + '</tbody></table></div></section>' + extras, user, csrf);
 };
 
 export function openDb(dbPath) {
@@ -89,6 +90,7 @@ export function openDb(dbPath) {
  db.exec("CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id), delta INTEGER NOT NULL CHECK(delta<>0), reason TEXT NOT NULL, actor_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
  installWalletUpdateSchema(db);
  installWalletMonitorSchema(db);
+ installMemberJourney(db);
  return db;
 }
 function listProducts(db) {
@@ -204,7 +206,35 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/member") {
      const count = db.prepare("SELECT COUNT(*) AS count FROM products WHERE status='draft'").get().count;
      const memberCode = ensureMemberCode(db,user.id);
-     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,walletReady:walletConfigured(),updatesReady:walletUpdatesConfigured(),updatesSaved:url.searchParams.get("updates_saved")==="1",saved:url.searchParams.get("saved")==="1",cardSaved:url.searchParams.get("card_saved")==="1"}));
+     const walletReady=walletConfigured(),updatesReady=walletUpdatesConfigured();
+     const onboarding=memberJourneySnapshot(db,user,{walletReady,updatesReady});
+     return respond(res,200,renderMemberPage({user,productCount:count,layout,csrfField,memberCode,
+       walletReady,updatesReady,onboarding,
+       updatesSaved:url.searchParams.get("updates_saved")==="1",
+       saved:url.searchParams.get("saved")==="1",cardSaved:url.searchParams.get("card_saved")==="1"}));
+   }
+   if (method === "GET" && pathname === "/member/security") {
+     markMemberMilestone(db,user.id,"security");
+     const sessionCount=db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE user_id=? AND expires_at>?")
+       .get(user.id,now()).count;
+     return respond(res,200,renderMemberSecurityPage({
+       user,sessionCount,csrf:user.csrf,notice:url.searchParams.get("notice")||"",layout
+     }));
+   }
+   if (method === "POST" && pathname === "/member/security/revoke-others") {
+     if(blocked("member:"+user.id,pathname,5))
+       return respond(res,429,"Too many security attempts","text/plain; charset=utf-8");
+     const params=await formBody(req);
+     if(!safeCompare(bodyValue(params,"csrf"),user.csrf))
+       return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+     const password=String(params.get("password")||"");
+     if(password.length<12||password.length>128)
+       return redirect(res,"/member/security?notice=password");
+     const stored=db.prepare("SELECT salt,password_hash FROM users WHERE id=?").get(user.id);
+     if(!stored||!safeCompare(passHash(password,stored.salt),stored.password_hash))
+       return redirect(res,"/member/security?notice=password");
+     db.prepare("DELETE FROM sessions WHERE user_id=? AND id_hash<>?").run(user.id,user.id_hash);
+     return redirect(res,"/member/security?notice=revoked");
    }
    if (method === "GET" && pathname === "/member/card.svg") {
      const memberCode = ensureMemberCode(db,user.id);
@@ -222,6 +252,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        "text/plain; charset=utf-8");
      try {
        const pass=signedPassFor(user);
+       markMemberMilestone(db,user.id,"wallet");
        return respond(res,200,pass,PASS_MIME,{
          "Content-Disposition":'attachment; filename="the-green-locker-member.pkpass"',
          "X-Content-Type-Options":"nosniff"
@@ -270,6 +301,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        db.prepare("UPDATE users SET card_theme=?,card_title=?,card_motto=? WHERE id=?")
          .run(cardTheme,cardTitle,cardMotto,user.id);
        if(changed)recordWalletRevision(db,user.id);
+       markMemberMilestone(db,user.id,"card");
        db.exec("COMMIT");
      }catch{
        db.exec("ROLLBACK");
@@ -309,7 +341,12 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      return respond(res,200,fs.readFileSync(path.join(root,pathname.slice(1))),"image/svg+xml",{
        "Content-Security-Policy":"default-src 'none'; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox"
      });
-   if (method === "GET" && (pathname === "/catalog" || pathname === "/shop")) return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db,{includeArchive:pathname==="/catalog",assortment:assortmentEditor.read()}));
+   if (method === "GET" && (pathname === "/catalog" || pathname === "/shop")) {
+     markMemberMilestone(db,user.id,"catalog");
+     return respond(res,200,catalogPage(listProducts(db),user,user.csrf,db,{
+       includeArchive:pathname==="/catalog",assortment:assortmentEditor.read()
+     }));
+   }
    if (await inventory.mediaRoute({req,res,pathname})) return;
    if (await assortmentEditor.mediaRoute({req,res,pathname})) return;
    if (method==="GET" && pathname==="/assortment-client.js" && user.role==="admin")
@@ -328,6 +365,12 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    }
    if (pathname.startsWith("/admin")) {
      if (user.role !== "admin") return respond(res,403,layout("Access denied",'<h1>Administrator access required</h1>',user,user.csrf));
+     if (method === "GET" && (pathname === "/admin/members" || pathname === "/admin/members.json")) {
+       const metrics=memberPlatformSnapshot(db,{walletReady:walletConfigured(),updatesReady:walletUpdatesConfigured()});
+       if(pathname.endsWith(".json"))
+         return respond(res,200,JSON.stringify(metrics),"application/json; charset=utf-8");
+       return respond(res,200,renderMemberOperationsPage(metrics,{layout,user,csrf:user.csrf}));
+     }
      if (method === "GET" && (pathname === "/admin/quality" || pathname === "/admin/quality.json")) {
        const metrics=await releaseQualitySnapshot();
        if (pathname.endsWith(".json"))
