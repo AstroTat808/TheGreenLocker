@@ -78,8 +78,20 @@ export function inspectWalletCertificates(env=process.env,{at=Date.now()}={}){
 /** Only expose the Add to Apple Wallet action after valid certificates and matching key checks. */
 export function walletIssuanceReady(env=process.env,{at=Date.now()}={}){
   const result=inspectWalletCertificates(env,{at});
-  return result.signingConfigured && result.keyCheck==="valid" &&
-    result.certificates.every(c=>["healthy","warning","critical"].includes(c.state));
+  if(!result.signingConfigured || result.keyCheck!=="valid" ||
+     !result.certificates.every(c=>["healthy","warning","critical"].includes(c.state)))return false;
+  try{
+    const signer=new X509Certificate(readPem(env.TGL_WALLET_SIGNER_CERT_B64));
+    const wwdr=new X509Certificate(readPem(env.TGL_WALLET_WWDR_CERT_B64));
+    // Validate the intended Apple Pass Type / Team identifiers and the supplied
+    // intermediate's cryptographic signature relationship to the signer.
+    const subject=signer.subject;
+    const type=env.TGL_WALLET_PASS_TYPE_ID,team=env.TGL_WALLET_TEAM_ID;
+    return subject.split("\n").some(x=>x.trim()==="UID="+type) &&
+      subject.split("\n").some(x=>x.trim()==="OU="+team) &&
+      /Apple/i.test(wwdr.subject) &&
+      signer.verify(wwdr.publicKey);
+  }catch{return false;}
 }
 export function walletOperationsSnapshot(db,{env=process.env,at=Date.now()}={}){
   const cert=inspectWalletCertificates(env,{at});
