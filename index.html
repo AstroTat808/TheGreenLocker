@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/shield-logo-transparent.svg">
   <link rel="apple-touch-icon" href="assets/shield-favicon.png">
   <meta name="robots" content="noindex, nofollow">
+  <link rel="preload" as="image" href="assets/shield-logo-transparent.svg" fetchpriority="high">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -44,7 +45,7 @@
         </div>
         <div class="hero-art" aria-label="The Green Locker official emerald and gold shield crest">
           <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-          <img src="assets/shield-logo-transparent.svg" class="hero-logo" alt="The Green Locker gold-rimmed shield featuring an emerald vault door and gold botanical emblems" width="660" height="660">
+          <img src="assets/shield-logo-transparent.svg" class="hero-logo" loading="eager" decoding="async" fetchpriority="high" alt="The Green Locker gold-rimmed shield featuring an emerald vault door and gold botanical emblems" width="660" height="660">
           <div class="art-caption">THE SIGNATURE SHIELD <span>001 / 001</span></div>
         </div>
       </div>
@@ -79,6 +80,6 @@
   <footer><div class="container footer-top"><a class="footer-brand" href="#top">THE GREEN <strong>LOCKER</strong></a><span>UNLOCK SOMETHING BETTER.</span></div><div class="container footer-bottom"><span>© <span id="year">2026</span> THE GREEN LOCKER · BRAND CONCEPT</span><span>This is not a live sales or shipping website. Actual availability depends on authorization and jurisdiction.</span></div></footer>
 
   <dialog id="ageDialog" aria-labelledby="ageTitle" class="age-dialog"><div class="age-inner"><img src="assets/shield-logo-transparent.svg" alt="" width="116" height="116"><div class="eyebrow">PRIVATE BRAND PREVIEW</div><h2 id="ageTitle">ARE YOU 21 OR OLDER?</h2><p>This visual concept is intended for adults. Age confirmation here is not identity verification or a substitute for regulatory controls.</p><div class="age-buttons"><button id="ageYes" class="button button-gold">YES, I AM 21+</button><button id="ageNo" class="button button-ghost">NO, EXIT PREVIEW</button></div><p class="age-note">No products are available to purchase on this page.</p></div></dialog>
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

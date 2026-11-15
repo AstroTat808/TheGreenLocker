@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { verifyVisual } from "./visual-fingerprint.mjs";
 import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -217,9 +218,17 @@ test("invited member can register, log in, and view concept-only catalog",async(
        ["settings","#member-settings"]
      ]){
        await expect(page.locator(selector)).toBeVisible();
-       await page.locator(selector).screenshot({
-         path:path.join(directory,width+"-"+name+".png"),animations:"disabled"
+       const screenshot=await page.locator(selector).screenshot({
+         path:path.join(directory,width+"-"+name+".png"),animations:"disabled",
+         mask:name==="card-front"?[page.locator("[data-member-code]")]:[]
        });
+       if(name==="card-front"){
+          const cardShot=await page.locator("[data-card-scene]").screenshot({
+            path:path.join(directory,width+"-card-scene-regression.png"),animations:"disabled",
+            mask:[page.locator("[data-member-code]")]
+          });
+          verifyVisual("private-mobile-webkit-"+width+"-member-card",cardShot);
+        }
      }
      await page.getByRole("button",{name:"Flip to back of membership card"}).click();
      await expect(page.locator("[data-card-scene]")).toHaveAttribute("data-card-face","back");
@@ -324,9 +333,10 @@ test("invited member can register, log in, and view concept-only catalog",async(
      ]) {
        const panel=page.locator(selector);
        await expect(panel).toBeVisible();
-       await panel.screenshot({
+       const screenshot=await panel.screenshot({
          path:path.join(directory,width+"-collection-"+name+".png"),animations:"disabled"
        });
+       if(name==="botanicals")verifyVisual("private-mobile-webkit-"+width+"-botanicals",screenshot);
      }
    }
  }
@@ -383,6 +393,16 @@ test("administrator can manage draft products and stock without sales actions",a
  await expect(page.locator(".private-logo img")).toHaveAttribute("src","/logo");
  await expect(page.getByRole("heading",{name:"Operations dashboard"})).toBeVisible();
  await assertNoOverflow(page);
+ if(mobileProject){
+   const directory=path.join("test-results","green-locker-mobile-visual-qa");
+   fs.mkdirSync(directory,{recursive:true});
+   await page.setViewportSize({width:375,height:780});
+   const shot=await page.locator(".private-title").first().screenshot({
+     path:path.join(directory,"375-admin-navigation.png"),animations:"disabled"
+   });
+   verifyVisual("private-mobile-webkit-375-admin",shot);
+   await assertNoOverflow(page);
+ }
  await page.getByRole("link",{name:"Backups"}).click();
  await expect(page).toHaveURL(/\/admin\/backups$/);
  await expect(page.getByRole("heading",{name:"Encrypted Backup Operations"})).toBeVisible();

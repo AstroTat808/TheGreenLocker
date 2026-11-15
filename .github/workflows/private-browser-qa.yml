@@ -2,7 +2,7 @@ name: Protected member browser QA
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, staging-preview]
 permissions:
   contents: read
 jobs:
