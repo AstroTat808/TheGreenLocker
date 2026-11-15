@@ -107,6 +107,10 @@ test("invited member can register, log in, and view concept-only catalog",async(
  await expect(page.locator(".member-compartment")).toHaveCount(4);
  await expect(page.locator("#vault-command-deck [role=tab]")).toHaveCount(4);
  await expect(page.locator("#vault-command-deck [role=tabpanel]")).toHaveCount(4);
+ const vaultScript=await page.request.get("/member-vault.js");
+ expect(vaultScript.status(),"Vault JS must be served to the authenticated member").toBe(200);
+ await expect(page.locator("#vault-command-deck")).toHaveAttribute("data-vault-deck-ready","true");
+
  const overview=page.getByRole("tab",{name:/Overview/});
  const walletTab=page.getByRole("tab",{name:/Apple Wallet/});
  await expect(overview).toHaveAttribute("aria-selected","true");
