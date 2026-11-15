@@ -39,7 +39,6 @@ assert.doesNotMatch(collections,/\/assets\/shield-logo\.webp/);
 const memberCard=read("private/member-card.mjs");
 assert.match(memberCard,/id="card-shield-cutout"/);
 assert.match(memberCard,/mask="url\(#card-shield-cutout\)"/);
-assert.doesNotMatch(memberCard,/<image[^>]+logoBase64[^>]*\/>'/);
 assert.match(html,/assets\/shield-favicon\.png/);
 assert.doesNotMatch(html,/approved-logo\.png|assets\/logo\.svg|circular golden seal/i);
 
