@@ -9,6 +9,7 @@ import { createSecurity } from "./security.mjs";
 import { createShieldDelivery } from "./logo-delivery.mjs";
 import { installMemberJourney, markMemberMilestone, memberJourneySnapshot, memberPlatformSnapshot, renderMemberSecurityPage, renderMemberOperationsPage } from "./member-journey.mjs";
 import { releaseQualitySnapshot, renderReleaseQualityDashboard } from "./release-quality.mjs";
+import { installMemberAdministration,createMemberInvitation,registerInvitedMember,revokeMemberInvitation,changeMembershipState,memberAdministrationSnapshot,renderMemberAdministration } from "./member-admin.mjs";
 import { normalizeDisplayName, validDisplayName, renderMemberPage, renderVaultPortal, friendlyName } from "./member.mjs";
 import { ensureMemberCode, renderMemberCardSvg } from "./member-card.mjs";
 import { walletConfigured, signedWalletPass, PASS_MIME } from "./wallet-pass.mjs";
@@ -44,7 +45,7 @@ const link = (href, title) => '<a href="' + href + '">' + esc(title) + '</a>';
 const header = (title, user, csrf) => '<header class="private-header"><a class="private-logo" href="' + (user ? "/member" : "/login") + '"><img src="/logo" alt="" width="52" height="52"><span>THE GREEN <b>LOCKER</b></span></a><nav aria-label="Private navigation">' + (user ? link("/member", "My vault") + link("/", "Brand home") + link("/catalog", "Concept catalog") + link("/shop", "Shop preview") + (user.role === "admin" ? link("/admin", "Dashboard") + link("/admin/quality", "Release quality") + link("/admin/backups", "Backups") : "") + '<form action="/logout" method="post">' + csrfField(csrf) + '<button type="submit">Log out</button></form>' : link("/login", "Log in") + link("/register", "Register")) + '</nav></header><div class="private-notice">PRIVATE DEVELOPMENT PREVIEW · NO SALES OR ORDERING</div>';
 const layout = (title, contents, user = null, csrf = "") => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#06170d"><meta name="robots" content="noindex,nofollow"><title>' + esc(title) + ' | The Green Locker</title><link rel="icon" type="image/svg+xml" href="/logo"><link rel="apple-touch-icon" href="/favicon.ico"><link rel="stylesheet" href="/private.css"></head><body>' + header(title,user,csrf) + '<main class="private-main">' + contents + '</main><footer class="private-footer">The Green Locker · Internal pre-launch software · No purchases, shipping, or fulfillment</footer></body></html>';
 const statusCard = text => '<p role="alert" class="form-error">' + esc(text) + '</p>';
-const authPage = (register, error = "", info = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires a private invitation code. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
+const authPage = (register, error = "", info = "", inviteValue = "") => layout(register ? "Register" : "Log in", '<section class="auth-panel"><span class="eyebrow">PRIVATE MEMBERS AREA</span><h1>' + (register ? "Register for access" : "Welcome back") + '</h1><p>' + (register ? "Registration requires an email-bound private invitation. New accounts await an administrator’s approval. All accounts are internal previews." : "Log in to access the concept website. This is not an active retailer.") + '</p>' + (error ? statusCard(error) : "") + (info ? '<p class="form-ok">' + esc(info) + '</p>' : "") + '<form method="post" action="' + (register ? "/register" : "/login") + '"><label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label><label>Password<input type="password" name="password" minlength="12" maxlength="128" autocomplete="' + (register ? "new-password" : "current-password") + '" required></label>' + (register ? '<label>Invitation code<input type="password" name="invite" autocomplete="off" value="' + esc(inviteValue) + '" required></label>' : "") + '<button class="private-button" type="submit">' + (register ? "Create private account" : "Log in") + '</button></form><p class="auth-switch">' + (register ? link("/login", "Already registered? Log in") : link("/register", "Have an invitation? Register")) + '</p><p class="auth-switch"><a href="/forgot-password">Forgot your password?</a> · <a href="/resend-verification">Resend verification</a></p></section>');
 const productRows = (products,db) => products.map(p => '<article class="catalog-card">' + (p.image_key ? '<img class="catalog-image" src="/media/' + encodeURIComponent(p.image_key) + '" alt="Draft product image for ' + esc(p.name) + '" loading="lazy">' : "") + '<div class="catalog-tag">FILE ' + esc(p.sku) + ' · ' + esc(p.category) + ' / CONCEPT</div><h2>' + esc(p.codename || p.name) + '</h2>' + (p.codename ? '<p class="locker-real-name">Internal identification: ' + esc(p.name) + '</p>' : "") + renderLockerSizeChoices(db,p) + '<small>Private draft archive · No prices, reservations or sales</small></article>').join("");
 const catalogPage = (products, user, csrf,db,{includeArchive=true,assortment=null}={}) => layout("The Green Locker Collections",
   renderVaultPortal() +
@@ -91,6 +92,7 @@ export function openDb(dbPath) {
  installWalletUpdateSchema(db);
  installWalletMonitorSchema(db);
  installMemberJourney(db);
+ installMemberAdministration(db);
  return db;
 }
 function listProducts(db) {
@@ -163,10 +165,15 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
    if (method === "GET" && pathname === "/private.css") return respond(res,200,fs.readFileSync(path.join(root,"private/private.css"),"utf8"),"text/css; charset=utf-8");
    if (method === "GET" && pathname === "/healthz") return respond(res,200,"ok","text/plain; charset=utf-8");
    const token = cookies(req).tgl_session;
-   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.card_theme,u.card_title,u.card_motto,u.wallet_updates_enabled,u.role,u.email_verified_at FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
-   const user = session && session.expires_at > now() ? session : null;
+   const session = token ? db.prepare("SELECT s.id_hash,s.csrf,s.expires_at,s.mfa_verified_at,u.id,u.email,u.display_name,u.card_theme,u.card_title,u.card_motto,u.wallet_updates_enabled,u.role,u.email_verified_at,u.membership_state FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.id_hash=?").get(hash(token)) : null;
+   const user = session && session.expires_at > now() &&
+     (session.role==="admin" || session.membership_state==="active") ? session : null;
    if (method === "GET" && pathname === "/login") return user ? redirect(res,user.role === "admin" ? "/admin" : "/member") : respond(res,200,authPage(false));
-   if (method === "GET" && pathname === "/register") return user ? redirect(res,"/") : respond(res,200,authPage(true));
+   if (method === "GET" && pathname === "/register") {
+     const invite=url.searchParams.get("invite")||"";
+     return user ? redirect(res,"/") : respond(res,200,authPage(true,"","",
+       /^[A-Za-z0-9_-]{32,128}$/.test(invite)?invite:""));
+   }
    if (["POST","PUT","PATCH","DELETE"].includes(method) && req.headers.origin) {
      // Token confirmation forms intentionally use no-referrer, which can produce Origin: null.
      // Restrict this exception to one-use, high-entropy token-consuming endpoints only.
@@ -184,10 +191,24 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      const email = bodyValue(p,"email").toLowerCase();
      const password = String(p.get("password") || "");
      if (pathname === "/register") {
-       if (!validEmail(email) || password.length < 12 || password.length > 128 || !safeCompare(String(p.get("invite") || ""),inviteCode)) return respond(res,400,authPage(true,"Invalid registration details or invitation code."));
-       if (db.prepare("SELECT id FROM users WHERE email=?").get(email)) return respond(res,400,authPage(true,"Registration could not be completed."));
-       const salt = randomBytes(16).toString("hex");
-       db.prepare("INSERT INTO users(email,salt,password_hash) VALUES(?,?,?)").run(email,salt,passHash(password,salt));
+       if (!validEmail(email) || password.length < 12 || password.length > 128)
+         return respond(res,400,authPage(true,"Invalid registration details or invitation code."));
+       const token=String(p.get("invite")||"");
+       const salt=randomBytes(16).toString("hex");
+       const passwordDigest=passHash(password,salt);
+       const individual=registerInvitedMember(db,{email,token,salt,passwordHash:passwordDigest});
+       if(!individual) {
+         // Legacy shared-code path is development-only, explicitly unavailable on
+         // cloud Workshop or when account approval is required.
+         const legacyAllowed=process.env.WORKSHOP_ALLOW_CLOUD_PREVIEW!=="1" &&
+           process.env.TGL_REQUIRE_MEMBER_APPROVAL!=="1";
+         if(!legacyAllowed||!safeCompare(token,inviteCode))
+           return respond(res,400,authPage(true,"Invitation invalid, expired, already used or registered to a different email."));
+         if(db.prepare("SELECT id FROM users WHERE email=?").get(email))
+           return respond(res,400,authPage(true,"Registration could not be completed."));
+         db.prepare("INSERT INTO users(email,salt,password_hash) VALUES(?,?,?)")
+           .run(email,salt,passwordDigest);
+       }
        await security.issue(email,"verify");
        return redirect(res,"/check-email");
      }
@@ -196,6 +217,10 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      const expected = userRow ? userRow.password_hash : "0".repeat(128);
      if (!userRow || !safeCompare(actualHash,expected)) return respond(res,401,authPage(false,"Incorrect email or password."));
      if (userRow.email_verified_at === null) return respond(res,403,authPage(false,"Confirm your email address before signing in."));
+     if (userRow.role!=="admin" && userRow.membership_state!=="active")
+       return respond(res,403,authPage(false,userRow.membership_state==="pending"?
+         "Email verified. Your private membership is awaiting administrator approval.":
+         "This account cannot access the private membership area."));
      const newToken = random();
      db.prepare("INSERT INTO sessions(id_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)").run(hash(newToken),userRow.id,random(),now()+MS8H);
      return redirect(res,userRow.role === "admin" ? "/admin/mfa" : "/member",{"Set-Cookie":sessionCookie(newToken)});
@@ -332,7 +357,7 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
      html = html.replace("<body>","<body>" + '<div class="site-private-bar"><span>PRIVATE PREVIEW · NO SALES</span>' + link("/catalog","Catalog") + link("/shop","Collections") + (user.role==="admin" ? link("/admin","Admin") : "") + '<form method="post" action="/logout">' + csrfField(user.csrf) + '<button>Log out</button></form></div>');
      return respond(res,200,html);
    }
-   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/gallery-preview.js","/member-compartments.js","/member-card-ui.js"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/gallery-preview") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+   if (method === "GET" && ["/styles.css","/app.js","/locker-motion.js","/vault-entry.js","/gallery-preview.js","/member-compartments.js","/member-card-ui.js","/member-vault.js","/member-vault.css"].includes(pathname)) return respond(res,200,fs.readFileSync(path.join(root,pathname.startsWith("/locker-motion") || pathname.startsWith("/vault-entry") || pathname.startsWith("/gallery-preview") || (pathname.startsWith("/member-compartments") || pathname.startsWith("/member-card-ui") || pathname.startsWith("/member-vault")) ? "private/"+pathname.slice(1) : pathname.slice(1))),pathname.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
    if (method === "GET" && pathname === "/assets/ui-icons.svg") return respond(res,200,fs.readFileSync(path.join(root,"assets/ui-icons.svg")),"image/svg+xml; charset=utf-8",{"Content-Security-Policy":"default-src 'none'; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; sandbox","Cache-Control":"public, max-age=3600"});
     if (method === "GET" && pathname === "/assets/shield-logo-transparent.svg") return shieldDelivery.send({req,res,respond,privateAsset:true});
     if (method === "GET" && pathname === "/assets/shield-logo.webp") return respond(res,200,fs.readFileSync(path.join(root,"assets/shield-logo.webp")),"image/webp");
@@ -406,6 +431,66 @@ export function createApp({ inviteCode = process.env.TGL_INVITE_CODE, dbPath = p
        return respond(res,200,renderWalletOperationsPage(
          walletOperationsSnapshot(db),{layout,user,csrf:user.csrf}
        ));
+     }
+     if(method==="GET" && pathname==="/admin/members/manage"){
+       const snapshot=memberAdministrationSnapshot(db);
+       return respond(res,200,renderMemberAdministration(snapshot,{layout,user,csrf:user.csrf,
+         notice:url.searchParams.get("notice")==="updated"?"Membership status updated.":""}));
+     }
+     if(method==="POST" && pathname==="/admin/invitations/new"){
+       const p=await formBody(req);
+       if(!safeCompare(bodyValue(p,"csrf"),user.csrf))
+         return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+       if(blocked("admin:"+user.id,pathname,20))
+         return respond(res,429,"Too many invitations","text/plain; charset=utf-8");
+       try{
+         const issued=createMemberInvitation(db,{
+           actorId:user.id,email:bodyValue(p,"email"),validDays:bodyValue(p,"valid_days")
+         });
+         const registrationURL=publicOrigin.replace(/\/$/,"")+"/register?invite="+encodeURIComponent(issued.token);
+         let delivery="manual";
+         // The isolated workshop has no externally verified mail sender.
+         // An explicitly supplied mail transport may send a one-time invitation.
+         if(typeof mailSender==="function"){
+           try{
+             await mailSender({to:issued.email,subject:"Private Green Locker membership invitation",
+               text:"You have been invited to the Green Locker private design preview. "+
+                 "Create an account using this single-use link before it expires:\n"+registrationURL+
+                 "\nAccess requires verified email and administrator approval."});
+             delivery="accepted";
+           }catch{delivery="manual";}
+         }
+         return respond(res,201,renderMemberAdministration(memberAdministrationSnapshot(db),{
+           layout,user,csrf:user.csrf,
+           issued:{email:issued.email,url:registrationURL},delivery
+         }));
+       }catch(error){
+         return respond(res,400,renderMemberAdministration(memberAdministrationSnapshot(db),{
+           layout,user,csrf:user.csrf,notice:"Unable to create invitation. Check the email and expiry."
+         }));
+       }
+     }
+     if(method==="POST" && pathname==="/admin/invitations/revoke"){
+       const p=await formBody(req);
+       if(!safeCompare(bodyValue(p,"csrf"),user.csrf))
+         return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+       const id=Number(bodyValue(p,"invite_id"));
+       if(!Number.isSafeInteger(id)||id<=0)
+         return respond(res,400,"Invalid invitation","text/plain; charset=utf-8");
+       return revokeMemberInvitation(db,{actorId:user.id,id})?
+         redirect(res,"/admin/members/manage?notice=updated"):
+         respond(res,409,"Invitation is already used, revoked or expired","text/plain; charset=utf-8");
+     }
+     if(method==="POST" && pathname==="/admin/members/status"){
+       const p=await formBody(req);
+       if(!safeCompare(bodyValue(p,"csrf"),user.csrf))
+         return respond(res,403,"Invalid request token","text/plain; charset=utf-8");
+       const userId=Number(bodyValue(p,"user_id")),action=bodyValue(p,"action");
+       if(!Number.isSafeInteger(userId)||userId<=0||!["approve","suspend","reactivate"].includes(action))
+         return respond(res,400,"Invalid member action","text/plain; charset=utf-8");
+       return changeMembershipState(db,{actorId:user.id,userId,action})?
+         redirect(res,"/admin/members/manage?notice=updated"):
+         respond(res,409,"Member status could not be changed","text/plain; charset=utf-8");
      }
      if (method === "GET" && pathname === "/admin") {
        const products = listProducts(db);
